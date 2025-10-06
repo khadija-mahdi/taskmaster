@@ -67,8 +67,6 @@ config_file.yml
 # Logs
 *.log
 
-# Build scripts
-build.sh
 
 # Python compiled files
 *.pyc
