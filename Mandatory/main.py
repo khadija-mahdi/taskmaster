@@ -30,7 +30,7 @@ def main():
         args = argsparser()
         init(args.config)
         while True:
-            user_input = input(colored('taskmaster> ', 'blue'))
+            user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
             if user_input:
                 parseCommandLineArgs(user_input)
     except Exception as e:

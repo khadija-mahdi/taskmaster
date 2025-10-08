@@ -12,6 +12,10 @@ class ConfigParser:
     VALID_SIGNALS = ['TERM', 'HUP', 'INT', 'QUIT', 'KILL', 'USR1', 'USR2']
     VALID_AUTORESTART = ['always', 'never', 'unexpected', True, False]
 
+    VALID_FIELDS = ['cmd', 'numprocs', 'autostart', 'autorestart', 'exitcodes', 'starttime',
+                       'startretries', 'stopsignal', 'stoptime', 'stdout', 'stderr', 'env', 'workingdir', 'umask']
+
+
     REQUIRED_FIELDS = ['cmd']
 
     def parse_config_file(file_path="config_file.yml"):
@@ -65,6 +69,11 @@ class ConfigParser:
                 raise ConfigError(f"Configuration must be a dictionary")
 
             parsed = {}
+            
+            for field in config:
+                if field not in ConfigParser.VALID_FIELDS:
+                    raise ConfigError(f"Unknown field: '{field}'")
+            
             for field in ConfigParser.REQUIRED_FIELDS:
                 if field not in config or not config[field]:
                     raise ConfigError(
