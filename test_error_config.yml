@@ -1,0 +1,58 @@
+programs:
+
+  bad_command:
+    cmd: "/usr/bin/nonexistent"
+    numprocs: 1
+    umask: 022
+    workingdir: /home/kmahdi/Desktop/taskmaster/
+    autostart: true
+    autorestart: unexpected
+    exitcodes:
+    - 0
+    - 2
+    startretries: 3
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 10
+    stdout: /tmp/bad_command.stdout
+    stderr: /tmp/bad_command.stderr
+    env:
+      STARTED_BY: taskmaster
+
+  test_fail:
+    cmd: "/home/kmahdi/Desktop/taskmaster/test_fail.sh"
+    numprocs: 1
+    umask: 022
+    workingdir: /home/kmahdi/Desktop/taskmaster/
+    autostart: true
+    autorestart: unexpected
+    exitcodes:
+    - 0
+    - 2
+    startretries: 3
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 10
+    stdout: /tmp/test_fail.stdout
+    stderr: /tmp/test_fail.stderr
+    env:
+      STARTED_BY: taskmaster
+
+  good_program:
+    cmd: "/bin/sleep 30"
+    numprocs: 1
+    umask: 022
+    workingdir: /home/kmahdi/Desktop/taskmaster/
+    autostart: true
+    autorestart: unexpected
+    exitcodes:
+    - 0
+    - 2
+    startretries: 3
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 10
+    stdout: /tmp/good_program.stdout
+    stderr: /tmp/good_program.stderr
+    env:
+      STARTED_BY: taskmaster
