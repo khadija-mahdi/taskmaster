@@ -1,35 +1,93 @@
 programs:
-  nginx:
-    cmd: "/usr/local/bin/nginx -c /etc/nginx/test.conf"
+  webapp:
+    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/app.py
     numprocs: 1
-    umask: 022 # default permissions
-    workingdir: /tmp
-    autostart: true
+    umask: 022
+    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    autostart: false
     autorestart: unexpected
-    exitcodes:
-      - 0
-      - 2
+    exitcodes: 0
     startretries: 3
     starttime: 5
     stopsignal: TERM
     stoptime: 10
-    stdout: /tmp/nginx.stdout
-    stderr: /tmp/nginx.stderr
+    stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/webapp.stdout
+    stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/webapp.stderr
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
-
-  vogsphere:
-    cmd: "/usr/local/bin/vogsphere-worker --no-prefork"
-    numprocs: 8
+  
+  api:
+    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
+    autorestart: true
+    numprocs: 3
+    exitcodes: [0, 2]
+    startretries: 3
+    autostart: false
+    env:
+      HOST: localhost
+      PORT: '8080'
+    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stdout
+    stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stderr
     umask: 077
-    workingdir: /tmp
+
+  workder:
+    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/worker.py
+    numprocs: 3
+    umask: 022
+    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
     autostart: true
     autorestart: unexpected
     exitcodes: 0
     startretries: 3
     starttime: 5
-    stopsignal: USR1
+    stopsignal: INT
     stoptime: 10
-    stdout: /tmp/vgsworker.stdout
-    stderr: /tmp/vgsworker.stder
+    stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stdout
+    stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stderr
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 42
+#  worker:
+# autostart=true
+# autorestart=true
+# startretries=3
+# numprocs=3
+
+
+
+  # nginx:
+  #   cmd: "/usr/local/bin/nginx -c /etc/nginx/workdir.conf"
+  #   numprocs: 1
+  #   umask: 022 # default permissions
+  #   workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+  #   autostart: true
+  #   autorestart: unexpected
+  #   exitcodes:
+  #     - 0
+  #     - 2
+  #   startretries: 3
+  #   starttime: 5
+  #   stopsignal: TERM
+  #   stoptime: 10
+  #   stdout: /tmp/nginx.stdout
+  #   stderr: /tmp/nginx.stderr
+  #   env:
+  #     STARTED_BY: taskmaster
+  #     ANSWER: 42
+
+  # vogsphere:
+  #   cmd: "/usr/local/bin/vogsphere-worker --no-prefork"
+  #   numprocs: 8
+  #   umask: 077
+  #   workingdir: /tmp
+  #   autostart: true
+  #   autorestart: unexpected
+  #   exitcodes: 0
+  #   startretries: 3
+  #   starttime: 5
+  #   stopsignal: USR1
+  #   stoptime: 10
+  #   stdout: /tmp/vgsworker.stdout
+  #   stderr: /tmp/vgsworker.stder

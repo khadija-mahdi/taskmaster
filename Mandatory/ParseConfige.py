@@ -11,11 +11,21 @@ class ConfigError(Exception):
 class ConfigParser:
     VALID_SIGNALS = ['TERM', 'HUP', 'INT', 'QUIT', 'KILL', 'USR1', 'USR2']
     VALID_AUTORESTART = ['always', 'never', 'unexpected', True, False]
-
-    VALID_FIELDS = ['cmd', 'numprocs', 'autostart', 'autorestart', 'exitcodes', 'starttime',
-                       'startretries', 'stopsignal', 'stoptime', 'stdout', 'stderr', 'env', 'workingdir', 'umask']
-
-
+    DEFAULT_CONFIG = {
+        'numprocs': 1,
+        'autostart': False,
+        'autorestart': 'unexpected',
+        'exitcodes': [0],
+        'starttime': 1,
+        'startretries': 3,
+        'stopsignal': 'TERM',
+        'stoptime': 10,
+        'stdout': None,
+        'stderr': None,
+        'env': {},
+        'workingdir': None,
+        'umask': 0o022
+    }
     REQUIRED_FIELDS = ['cmd']
 
     def parse_config_file(file_path="config_file.yml"):
@@ -69,11 +79,6 @@ class ConfigParser:
                 raise ConfigError(f"Configuration must be a dictionary")
 
             parsed = {}
-            
-            for field in config:
-                if field not in ConfigParser.VALID_FIELDS:
-                    raise ConfigError(f"Unknown field: '{field}'")
-            
             for field in ConfigParser.REQUIRED_FIELDS:
                 if field not in config or not config[field]:
                     raise ConfigError(
@@ -154,8 +159,8 @@ class ConfigParser:
         if value < 1:
             raise ConfigError("'numprocs' must be at least 1")
 
-        if value > 10:
-            raise ConfigError("'numprocs' cannot exceed 100")
+        if value >= 10:
+            raise ConfigError("'numprocs' cannot exceed 10")
 
         return value
 
