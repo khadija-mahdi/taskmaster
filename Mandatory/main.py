@@ -30,7 +30,8 @@ def main():
                 result = parseCommandLineArgs(user_input)
                 readline.add_history(user_input)
                 # print(result)
-                Supervisor(programs, result)
+                supervisor = Supervisor(programs, result)
+                # supervisor.supervise()
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)

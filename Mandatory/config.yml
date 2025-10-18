@@ -32,8 +32,8 @@ programs:
     stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stderr
     umask: 077
 
-  workder:
-    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/worker.py
+  worker:
+    cmd: python /home/hasabir/Desktop/projects/taskmaster/workdir/worker.py
     numprocs: 3
     umask: 022
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
