@@ -24,14 +24,14 @@ def main():
     try:
         args = argsparser()
         programs = init(args.config)
+        supervisor = Supervisor(programs)
         while True:
             user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
             if user_input:
                 result = parseCommandLineArgs(user_input)
                 readline.add_history(user_input)
                 # print(result)
-                supervisor = Supervisor(programs, result)
-                # supervisor.supervise()
+                supervisor.supervise(result)
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
