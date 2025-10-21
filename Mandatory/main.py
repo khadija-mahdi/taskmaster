@@ -24,7 +24,7 @@ def main():
     try:
         args = argsparser()
         programs = init(args.config)
-        supervisor = Supervisor(programs)
+        supervisor = Supervisor(programs, args.config)
         while True:
             user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
             if user_input:

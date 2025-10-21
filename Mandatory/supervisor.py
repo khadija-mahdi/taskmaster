@@ -5,11 +5,14 @@ import sys
 import time
 import json
 
+from ParseConfige import ConfigParser
+
 
 class Supervisor:
-    def __init__(self, programs: dict):
+    def __init__(self, programs: dict, config_file_name: str):
         self.programs = programs
         self.child_pids = {}
+        self.config_file_name = config_file_name
         self.state_dir = '/tmp/taskmaster_states'
         if not os.path.isdir(self.state_dir):
             try:
@@ -29,6 +32,8 @@ class Supervisor:
             self.restart(self.arg)
         elif self.cmd == "stop":
             self.stop(self.arg)
+        elif self.cmd == "reload":
+            self.reload(self.arg)
         else:
             print("Invalid command")
             
@@ -36,21 +41,18 @@ class Supervisor:
         for key, value in self.programs.items():
             if not (arg == key or (value.get('autostart', True) and arg is None)):
                 continue
-            try:
-                pid = os.fork()
-            except OSError as e:
-                print(f"fork failed: {e}")
-                sys.exit(1)
-            
-            if pid == 0:
-                if value.get('numprocs', 1) > 1:
-                    for i in range(arg.get('numprocs', 1)):
-                        worker_name = f"{key}:{key}_{i}"
-                        self._worker(key, worker_name)
+            for i in range(value.get('numprocs', 1)):
+                worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
+                try:
+                    pid = os.fork()
+                except OSError as e:
+                    print(f"fork failed: {e}")
+                    sys.exit(1)
+                
+                if pid == 0:
+                    self._worker(key, worker_name)
                 else:
-                    self._worker(key, key)
-            else:
-                self.child_pids[key] = pid
+                    self.child_pids[key] = pid
         if self.child_pids:
             self._monitor()
 
@@ -68,8 +70,10 @@ class Supervisor:
                 for worker_name, state in worker_states.items():
                     if state.get('status') == 'running' and 'pid' in state:
                         print(f"{worker_name} is running with PID {state['pid']}")
+                    elif 'message' in state and state['message'] is not None and state['message'] != "":
+                        print(f"{worker_name} {state['message']}")
                     elif 'exit_code' in state:
-                        print(f"{worker_name} exited with code {state['exit_code']}")
+                        print(f"{worker_name} Error exited with code {state['exit_code']}")
                     else:
                         print(f"{worker_name} is not running")
 
@@ -105,6 +109,38 @@ class Supervisor:
                             print(f"Sent {sig.name} to {worker_name} (PID {pid})")
                         except OSError as e:
                             print(f"Failed to stop {worker_name} (PID {pid}): {e}")
+    
+    def reload(self, arg):
+        new_programs = ConfigParser.parse_config_file(self.config_file_name)
+
+        # If an argument is provided, only reload that specific program
+        if arg is not None:
+            # If program exists in new config, update/restart if changed or new
+            if arg in new_programs:
+                program_data = new_programs[arg]
+                if arg not in self.programs or program_data != self.programs.get(arg):
+                    self.programs[arg] = program_data
+                    self.restart(arg)
+            # If program was removed from config, stop and delete it
+            else:
+                if arg in self.programs:
+                    self.stop(arg)
+                    del self.programs[arg]
+            return
+
+        # Reload all programs: add/update and restart changed/new programs
+        for program_name, program_data in new_programs.items():
+            if program_name not in self.programs or program_data != self.programs.get(program_name):
+                self.programs[program_name] = program_data
+                self.restart(program_name)
+
+        # Stop and remove programs that are no longer present in the new config.
+        # Iterate over a list copy to avoid "dictionary changed size during iteration".
+        for program_name in list(self.programs.keys()):
+            if program_name not in new_programs:
+                self.stop(program_name)
+                del self.programs[program_name]
+
 
     def _get_all_worker_states(self, program_name):
         """Get all worker state files for a program"""
@@ -130,6 +166,7 @@ class Supervisor:
     def _worker(self, worker, worker_name):
         """Execute the program in child process with output redirection"""
         try:
+            test = {}
             pid = os.getpid()
             
             os.setsid()
@@ -137,7 +174,21 @@ class Supervisor:
             try:
                 pid2 = os.fork()
                 if pid2 > 0:
-                    sys.exit(0)  # Exit first child
+                    # First child: monitor the grandchild for a short "start" interval
+                    # pid2 is the grandchild PID. Ensure it stays alive for configured 'starttime' seconds.
+                    start_check = self.programs[worker].get('starttime', 1)
+                    # end_time = time.time() + start_check
+                    # while time.time() < end_time:
+                    #     try:
+                    #         os.kill(pid2, 0)  # check if grandchild still exists
+                    #     except OSError:
+                    #         # Grandchild died before the start interval elapsed
+                    #         self._write_worker_state(worker_name, exit_code=1, message="Exited too quickly during start")
+                    #         sys.exit(1)
+                        # time.sleep(0.1)
+                    # Grandchild survived the start interval -> exit the first child successfully
+                    # sys.exit(0)
+                    process.wait()
             except OSError as e:
                 print(f"Second fork failed: {e}", file=sys.stderr)
                 sys.exit(0)
@@ -176,14 +227,24 @@ class Supervisor:
                 
             exit_code = process.wait()
             end_time = time.perf_counter()
+            status_message = ""
             elapsed_time = end_time - start_time
             if self.programs[worker].get('stoptime') and elapsed_time < self.programs[worker]['stoptime']:
+                print("wtf:", self.programs[worker]['stoptime'])
                 exit_code = 1
+                status_message = "Exited too quickly"
             # Write exit status to state file
-            self._write_worker_state(worker_name, exit_code=exit_code)
+            elif exit_code in self.programs[worker_name].get('exitcodes', [0]):
+                status_message = "Exited successfully"
+            else:
+                status_message = f"Error exited with code {exit_code}"
+            self._write_worker_state(worker_name, exit_code=exit_code, message=status_message)
+            
+            
             sys.exit(exit_code)
 
         except Exception as e:
+            # print(f"error: {e}", file=sys.stderr)
             self._write_worker_state(worker_name, exit_code=1)
             sys.exit(1)
 
@@ -192,7 +253,8 @@ class Supervisor:
         try:
             while self.child_pids:
                 try:
-                    pid, status = os.waitpid(-1, os.WNOHANG)                    
+                    pid, status = os.waitpid(-1, os.WNOHANG)
+                    # worker_states = self._get_all_worker_states(key)
                     time.sleep(0.5)  # Small sleep to avoid busy waiting
                     
                 except ChildProcessError:
@@ -221,6 +283,7 @@ class Supervisor:
             state['pid'] = pid
             state['status'] = 'running'
         if exit_code is not None:
+            # print(f"Writing exit code {exit_code} for {worker_name}, and exit message : {message}")  # Debug print
             state['exit_code'] = exit_code
             state['status'] = 'exited'
             state['message'] = message

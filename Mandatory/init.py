@@ -42,6 +42,7 @@ def init(file_path):
         _print_banner()
 
         programs = ConfigParser.parse_config_file(file_path)
+        print(programs["worker"])
 
         print(colored("Configuration loaded successfully!", "green"))
         print(

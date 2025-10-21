@@ -16,7 +16,7 @@ programs:
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
-  
+
   api:
     cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
     autorestart: true
@@ -46,9 +46,12 @@ programs:
     stoptime: 10
     stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stdout
     stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stderr
-    env:
-      STARTED_BY: taskmaster
-      ANSWER: 42
+    # env:
+    #   STARTED_BY: taskmaster
+    #   ANSWER: 42
+    exitcodes: [0, 2]
+  
+
 #  worker:
 # autostart=true
 # autorestart=true
