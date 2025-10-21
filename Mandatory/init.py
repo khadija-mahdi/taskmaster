@@ -33,15 +33,12 @@ def _print_banner():
 
 
 
-def _sigint_handler(signum, frame):
-    print('\n' + colored('Interrupted. Exiting...', 'red'))
-    sys.exit(130)
-
 
 def init(file_path):
     try:
         print(colored("Initializing Task Master CLI...", "yellow"), file_path)
-        signal.signal(signal.SIGINT, _sigint_handler)
+        # return if control+c is pressed
+        signal.signal(signal.SIGINT, lambda sig, frame: sys.exit(0))        
         _print_banner()
 
         programs = ConfigParser.parse_config_file(file_path)
