@@ -1,414 +1,349 @@
 import os
-import shutil
 import sys
 import time
 import signal
-import threading
+from ParseConfige import ConfigParser
 from termcolor import colored
+import select
+from helper import exec_child_process, cleanup_failed_process, cleanup_program, stop_process, should_autorestart, isalive_process, run_process, register_process, log_event
+from sendEmail import EmailAlerter
 
 
 class Commands:
     VALID_CMDS = {"start", "stop", "restart",
-                  "status", "reload", "exit", "help"}
+                  "status", "reload", "exit", "help", "attach", "detach"}
 
     def __init__(self, programs=None, running_processes=None):
         self.programs = programs or {}
         self.running_processes = running_processes if running_processes is not None else {}
         self.process_info = {}
-        self.monitor_thread = None
         self.running = True
-        self.start_monitoring()
 
-    def get_path(self, path):
-        if path is None:
-            return None
-        _expanded = os.path.expandvars(path)
-        return _expanded.replace("$PWD", os.getcwd())
+        self.email_alerter = EmailAlerter(
+            smtp_server="smtp.gmail.com",
+            smtp_port=465,
+            username="khadiijamahdii@gmail.com",
+            password="femn jshx icni vovr",
+            recipients=["khadijamahdi6@gmail.com"]
+        )
 
-    def start_monitoring(self):
-        if self.monitor_thread is None or not self.monitor_thread.is_alive():
-            self.monitor_thread = threading.Thread(
-                target=self.monitor_processes, daemon=True)
-            self.monitor_thread.start()
+    # ---------------------------------------------------------------------- #
+    #                             PROGRAM CONTROL                            #
+    # ---------------------------------------------------------------------- #
 
-    def monitor_processes(self):
-        while self.running:
+    def start_single_instance(self, program, indexed_name, out):
+        startretries = program.get("startretries", 3)
+        starttime = program.get("starttime", 1)
+        exitcodes = program.get("exitcodes", [0])
+        autorestart = should_autorestart(
+            program.get("autorestart", "unexpected"))
+
+        retry_count = 0
+        success = False
+
+        while retry_count < startretries + 1 and not success:
+            pid = None
             try:
-                for program_name, program_config in self.programs.items():
-                    pids = list(self.running_processes.get(program_name, []))
-                    if not pids:
-                        continue
+                pid = run_process(program, indexed_name)
 
-                    for pid in pids[:]:
-                        try:
-                            os.kill(pid, 0)
-                        except ProcessLookupError:
-                            self.handle_dead_process(
-                                program_name, program_config, pid)
-                        except PermissionError:
-                            pass
+                print(f"INFO Created: '{indexed_name}' with pid {pid}")
 
-                time.sleep(1)
-            except Exception as e:
-                print(f"Monitor thread error: {e}")
-                time.sleep(5)
-
-    def handle_dead_process(self, program_name, program_config, pid):
-        try:
-            if pid in self.running_processes.get(program_name, []):
-                self.running_processes[program_name].remove(pid)
-
-            try:
-                _, exit_status = os.waitpid(pid, os.WNOHANG)
-                exit_code = os.WEXITSTATUS(
-                    exit_status) if os.WIFEXITED(exit_status) else -1
-            except:
-                exit_code = -1
-
-            exitcodes = program_config.get('exitcodes', [0, 2])
-            if exit_code in exitcodes:
-                print(f"exited: {program_name} (exit status {exit_code})")
-            else:
                 print(
-                    f"exited: {program_name} (exit status {exit_code}; not expected)")
+                    f"INFO Waiting {starttime}s to verify '{indexed_name}' is running...")
+                time.sleep(starttime)
 
-            autorestart = program_config.get('autorestart', 'unexpected')
+                alive, exit_code = isalive_process(pid)
 
-            should_restart = False
-            if autorestart == 'always':
-                should_restart = True
-            elif autorestart == 'never':
-                should_restart = False
-            elif autorestart == 'unexpected':
-                should_restart = exit_code not in exitcodes
+                if not alive:
+                    expected = exit_code in exitcodes if exit_code is not None else False
+                    msg = (
+                        f"WARN exited: '{indexed_name}' (exit status {exit_code}; "
+                        f"{'expected' if expected else 'not expected'}) after {starttime:.1f}s"
+                    )
+                    out.append(colored(msg, "yellow"))
 
-            if should_restart:
-                process_key = f"{program_name}_{pid}"
-                if process_key not in self.process_info:
-                    self.process_info[process_key] = {
-                        'retries': 0, 'start_time': time.time()}
+                    print(msg)
 
-                startretries = program_config.get('startretries', 3)
-                if self.process_info[process_key]['retries'] < startretries:
-                    self.process_info[process_key]['retries'] += 1
-                    # new_pid = self.restart_single_process(program_name, program_config)
-                    self.start_command(self.programs, program_name)
-                    print(f"attempted to restart '{program_name}'")
-                else:
-                    print(
-                        f"gave up: {program_name} entered FATAL state, too many start retries too quickly")
+                    if not expected:
+                        self.email_alerter.send_alert(
+                            subject=f"Process {indexed_name} Failed",
+                            message=f"Process '{indexed_name}' died unexpectedly with exit code {exit_code} after {starttime:.1f}s",
+                            severity="ERROR"
+                        )
+                        log_event(
+                            "PROCESS_DIED", f"'{indexed_name}' died unexpectedly with exit code {exit_code}")
+                    else:
+                        log_event(
+                            "PROCESS_EXITED", f"'{indexed_name}' exited with expected code {exit_code}")
 
-        except Exception as e:
-            print(
-                f"Error handling dead process {pid} for '{program_name}': {e}")
+                    cleanup_failed_process(
+                        indexed_name, pid, self.running_processes, self.process_info)
 
-        except Exception as e:
-            print(
-                f"Error handling dead process {pid} for '{program_name}': {e}")
+                    retry_count += 1
 
-    def exec_child_process(self, program, program_name):
-        os.setsid()
-        cmd = self.get_path(program.get('cmd'))
-        if not cmd:
-            raise Exception(
-                f"spawnerr: no command specified for program '{program_name}'")
+                    if retry_count < startretries and autorestart:
 
-        parts = cmd.split()
-        command_path = parts[0]
+                        print(
+                            f"\nINFO retrying: '{indexed_name}' (attempt {retry_count}/{startretries})")
+                        time.sleep(1)
+                        continue
+                    else:
+                        break
 
-        if not os.path.isabs(command_path):
-            if not shutil.which(command_path):
-                raise Exception(f"spawnerr: can't find command '{command_path}'")
-        else:
-            if not os.path.exists(command_path):
-                raise Exception(f"spawnerr: can't find command '{command_path}'")
-            if not os.access(command_path, os.X_OK):
-                raise Exception(
-                    f"spawnerr: command '{command_path}' is not executable")
-                
-        workingdir = self.get_path(program.get('workingdir')) or os.getcwd()
-        umask = program.get('umask', 0o022)
-        os.umask(umask)
+                register_process(self.running_processes, self.process_info,
+                                 program["name"], indexed_name, pid, retry_count)
 
-        stdout_path = program.get('stdout')
-        stderr_path = program.get('stderr')
-        if stdout_path:
-            try:
-                sys.stdout.flush()
-                fd_out = os.open(stdout_path, os.O_WRONLY |
-                                    os.O_CREAT | os.O_APPEND, 0o666)
-                os.dup2(fd_out, sys.stdout.fileno())
+                msg = (
+                    f"INFO success: '{indexed_name}' with pid {pid} entered RUNNING state, "
+                    f"process has stayed up for > {starttime} seconds\n"
+                )
+                out.append(colored(msg, "green"))
+
+                print(msg)
+                log_event(
+                    "PROCESS_RUNNING", f"'{indexed_name}' with pid {pid} entered RUNNING state")
+                success = True
+
             except Exception as e:
-                raise Exception(
-                    f"spawnerr: can't redirect stdout to '{stdout_path}': {e}")
-        if stderr_path:
-            try:
-                sys.stderr.flush()
-                fd_err = os.open(stderr_path, os.O_WRONLY |
-                                    os.O_CREAT | os.O_APPEND, 0o666)
-                os.dup2(fd_err, sys.stderr.fileno())
-            except Exception as e:
-                raise Exception(
-                    f"spawnerr: can't redirect stderr to '{stderr_path}': {e}")
+                if pid:
+                    cleanup_failed_process(
+                        indexed_name, pid, self.running_processes, self.process_info)
+                retry_count += 1
+                err = f"ERR Error starting '{indexed_name}': {e}"
+                out.append(colored(err, "red"))
 
-        env = os.environ.copy()
-        for k, v in (program.get('env') or {}).items():
-            env[k] = str(v)
+                print(err)
+                time.sleep(1)
 
-        try:
-            os.chdir(workingdir)
-        except Exception as e:
-            raise Exception(f"spawnerr: can't chdir to '{workingdir}': {e}")
-            
+        if not success:
+            msg = f"\nINFO gave up: '{indexed_name}' entered FATAL state, too many retries\n"
 
-        start_time = program.get('starttime', 0)
-        if start_time > 0:
-            time.sleep(start_time)
+            self.email_alerter.send_alert(
+                subject=f"CRITICAL: Process {indexed_name} FATAL",
+                message=f"Process '{indexed_name}' entered FATAL state after too many failed restart attempts",
+                severity="CRITICAL"
+            )
 
-        try:
-            os.execvpe(parts[0], parts, env)
-        except OSError as e:
-            raise Exception(f"spawnerr: failed to execute '{parts[0]}': {e}")
-        except Exception as e:
-            raise Exception(f"spawnerr: execution error for '{parts[0]}': {e}")
+            register_process(self.running_processes, self.process_info,
+                             program["name"], indexed_name, 0, retry_count, "FATAL")
+
+            out.append(colored(msg, "red"))
+
+            print(msg)
+
+        return success
 
     def program_config(self, program, program_name, out):
-        """Fork and exec configured program instances; append human-readable
-        log lines to the `out` list which will be returned to the client.
-        """
-        try:
-            numprocs = program.get('numprocs', 1)
-            self.running_processes.setdefault(program_name, [])
+        """Start configured program instances with retries and tracking."""
+        numprocs = program.get("numprocs", 1)
+        program["name"] = program_name
+        successful_starts = 0
 
-            for index in range(numprocs):
-                startretries = program.get('startretries', 3)
-                retry_count = 0
-                success = False
+        for i in range(numprocs):
+            indexed_name = f"{program_name}_{i:02d}" if numprocs > 1 else program_name
+            if self.start_single_instance(program, indexed_name, out):
+                successful_starts += 1
 
-                while retry_count <= startretries and not success:
-                    try:
-                        pid = os.fork()
-                        if pid == 0:
-                            try:
-                                self.exec_child_process(program, program_name)
-                            except Exception as e:
-                                print(e)
-                                exit(1)
-                                
-                                
-                        else:
-                            # First quick check to see if process started
-                            time.sleep(0.1)  # Brief initial wait
-                            try:
-                                os.kill(pid, 0)
-                                print(f"Process {pid} alive after 0.1s")
-                            except ProcessLookupError:
-                                print(f"Process {pid} died immediately")
-                                retry_count += 1
-                                if retry_count <= startretries:
-                                    out.append(colored(
-                                        f"spawnerr: '{program_name}' process died immediately, retrying ({retry_count}/{startretries})", 'yellow'))
-                                    print(
-                                        f"spawnerr: '{program_name}' process died immediately, retrying...")
-                                    time.sleep(1)
-                                    continue
-                                else:
-                                    out.append(colored(
-                                        f"gave up: {program_name} entered FATAL state, too many start retries too quickly", 'red'))
-                                    print(
-                                        f"gave up: {program_name} entered FATAL state, too many start retries too quickly")
-                                    success = False
-                                    break
-                            
-                            start_time = program.get('starttime', 0)
-                            validation_time = max(1, start_time + 1)
-                            print(
-                                f'Waiting {validation_time}s for program {program_name} to start')
-                            time.sleep(validation_time)
-
-                            # Check if process is still alive
-                            try:
-                                os.kill(pid, 0)
-                                # Give it a bit more time to make sure it's stable
-                                time.sleep(0.5)
-                                os.kill(pid, 0)
-
-                                self.running_processes[program_name].append(
-                                    pid)
-                                out.append(
-                                    f"spawned: '{program_name}' with pid {pid}")
-                                print(
-                                    f"spawned: '{program_name}' with pid {pid}")
-                                success = True
-                                process_key = f"{program_name}_{pid}"
-                                self.process_info[process_key] = {
-                                    'retries': 0, 'start_time': time.time()}
-                            except ProcessLookupError:
-                                # Clean up zombie process
-                                try:
-                                    _, exit_status = os.waitpid(pid, os.WNOHANG)
-                                    if os.WIFEXITED(exit_status):
-                                        exit_code = os.WEXITSTATUS(exit_status)
-                                        if exit_code != 0:
-                                            print(f"Process {pid} exited with code {exit_code}")
-                                except:
-                                    pass
-                                
-                                retry_count += 1
-                                if retry_count <= startretries:
-                                    out.append(colored(
-                                        f"spawnerr: '{program_name}' process died during startup, retrying ({retry_count}/{startretries})", 'yellow'))
-                                    print(
-                                        f"spawnerr: '{program_name}' process died during startup, retrying...")
-                                    time.sleep(1)
-                                else:
-                                    out.append(colored(
-                                        f"gave up: {program_name} entered FATAL state, too many start retries too quickly", 'red'))
-                                    print(
-                                        f"gave up: {program_name} entered FATAL state, too many start retries too quickly")
-                                    success = False  # Ensure we exit the retry loop
-                    except Exception as e:
-                        retry_count += 1
-                        if retry_count <= startretries:
-                            out.append(
-                                f"spawnerr: error starting '{program_name}', retrying ({retry_count}/{startretries}): {e}")
-                            print(f"spawnerr: error starting '{program_name}', retrying: {e}")
-                            time.sleep(1)
-                        else:
-                            out.append(colored(
-                                f"gave up: {program_name} entered FATAL state, failed to start after {startretries} retries: {e}", 'red'))
-                            print(colored(
-                                f"gave up: {program_name} entered FATAL state, failed to start after {startretries} retries: {e}", 'red'))
-                            success = False  # Ensure we exit the retry loop
-
-        except Exception as e:
+        if successful_starts == 0:
             out.append(
-                colored(f"Error configuring program '{program_name}': {e}", 'red'))
+                colored(f"FATAL: '{program_name}' could not be started", "red"))
+        elif successful_starts < numprocs:
+            out.append(
+                colored(
+                    f"WARNING: Only {successful_starts}/{numprocs} instances of '{program_name}' started", "yellow")
+            )
+
+    # ---------------------------------------------------------------------- #
+    #                              START COMMAND                             #
+    # ---------------------------------------------------------------------- #
+
 
     def start_command(self, programs, program_name=None):
+        """Start one or all programs, or a specific instance."""
         out = []
-        if program_name in self.running_processes and self.running_processes.get(program_name):
-            return f"Program '{program_name}' is already running."
-        if program_name and program_name.lower() != 'all':
-            if program_name in programs:
+
+        if program_name and program_name.lower() != "all":
+            # Check if this is a specific instance (e.g., api_01)
+            if program_name in self.process_info:
+                # This is a specific instance
+                base_program_name = self.process_info[program_name].get('program_name')
+                current_state = self.process_info[program_name].get('state')
+                
+                if current_state == 'RUNNING':
+                    return f"Program '{program_name}' is already running."
+                
+                if base_program_name not in programs:
+                    return f"Program config for '{base_program_name}' not found."
+                
+                # Start just this specific instance
+                program = programs[base_program_name].copy()
+                program["name"] = base_program_name
+                
+                if self.start_single_instance(program, program_name, out):
+                    out.append(colored(f"Successfully restarted '{program_name}'", "green"))
+                else:
+                    out.append(colored(f"Failed to restart '{program_name}'", "red"))
+                    
+            # Check if this is a base program name
+            elif program_name in programs:
+                if program_name in self.running_processes and self.running_processes.get(program_name):
+                    return f"Program '{program_name}' is already running."
+                
                 self.program_config(programs[program_name], program_name, out)
             else:
-                out.append(
-                    colored(f"Program '{program_name}' not found.", 'red'))
+                out.append(colored(f"Program '{program_name}' not found.", "red"))
         else:
-            out.append(colored("Starting all programs...", 'cyan'))
+            out.append(colored("Starting all programs...", "cyan"))
             for pname, pdata in programs.items():
+                if pname in self.running_processes and self.running_processes.get(pname):
+                    out.append(f"Program '{pname}' is already running.")
+                    continue
+
                 self.program_config(pdata, pname, out)
+                out.append("")
+
         return "\n".join(out) if out else "OK: start"
 
-    def stop_process(self, pid, stopsignal, stoptime):
-        try:
-            if isinstance(stopsignal, str):
-                stopsignal = getattr(signal, f'SIG{stopsignal}', getattr(
-                    signal, stopsignal, signal.SIGTERM))
 
-            os.kill(pid, stopsignal)
-            start_wait = time.time()
-            while True:
-                try:
-                    os.kill(pid, 0)
-                    if time.time() - start_wait > stoptime:
-                        try:
-                            os.kill(pid, signal.SIGKILL)
-                            print(
-                                f"Process {pid} didn't stop gracefully, sent SIGKILL")
-                        except Exception:
-                            pass
-                        break
-                    time.sleep(0.1)
-                except ProcessLookupError:
-                    break
-        except ProcessLookupError:
-            pass
-        except PermissionError:
-            pass
+    # ---------------------------------------------------------------------- #
+    #                               STOP COMMAND                             #
+    # ---------------------------------------------------------------------- #
 
     def stop_command(self, programs, program_name=None):
         out = []
         if program_name and program_name.lower() != 'all':
-            if program_name not in programs:
-                out.append(
-                    colored(f"Program '{program_name}' not found.", 'red'))
-                return "\n".join(out)
-            target = {program_name: programs[program_name]}
+            if program_name not in self.process_info:
+                return f"Program '{program_name}' not found."
+            
+            base_program_name = self.process_info[program_name].get('program_name')
+            target = {base_program_name: programs.get(base_program_name, {})}
         else:
             target = programs
 
         for pname, pdata in target.items():
-            pids = list(self.running_processes.get(pname, []))
-            if not pids:
-                out.append(f"{pname} is already stopped.")
-                continue
+            if program_name and program_name.lower() != 'all':
+                indexed_name = program_name
+                info = self.process_info.get(indexed_name, {})
+                pid = info.get('pid')
+                
+                if not pid or pid == 0:
+                    out.append(f"{indexed_name} is already stopped.")
+                    print(f"{indexed_name} is already stopped.")
+                    continue
+                
+                pids_to_stop = [(indexed_name, pid)]
+            else:
+                pids_to_stop = []
+                for indexed_name, info in list(self.process_info.items()):
+                    if info.get('program_name') == pname:
+                        pid = info.get('pid')
+                        if pid and pid != 0:
+                            pids_to_stop.append((indexed_name, pid))
+                
+                if not pids_to_stop:
+                    out.append(f"{pname} is already stopped.")
+                    print(f"{pname} is already stopped.")
+                    continue
+
             stopsignal_name = pdata.get('stopsignal', 'TERM')
             stoptime = pdata.get('stoptime', 5)
+
             if isinstance(stopsignal_name, str):
-                stopsignal = getattr(signal, f'SIG{stopsignal_name}', getattr(
-                    signal, stopsignal_name, signal.SIGTERM))
+                stopsignal_name = stopsignal_name.upper()
+                stopsignal = getattr(
+                    signal, f"SIG{stopsignal_name}", signal.SIGTERM)
             else:
                 stopsignal = stopsignal_name
 
-            out.append(
-                f"Stopping program '{pname}' with signal {stopsignal_name}...")
-            for pid in pids:
-                print(f"waiting for {pname} to stop...")
-                self.stop_process(pid, stopsignal, stoptime)
+            if program_name and program_name.lower() != 'all':
+                out.append(
+                    f"Stopping '{program_name}' with signal {stopsignal_name}...")
+                print(
+                    f"Stopping '{program_name}' with signal {stopsignal_name}...")
+            else:
+                out.append(
+                    f"Stopping program '{pname}' with signal {stopsignal_name}...")
+                print(
+                    f"Stopping program '{pname}' with signal {stopsignal_name}...")
 
-            self.running_processes[pname] = []
-            out.append(f"Program '{pname}' stopped.")
-            print(f"Program '{pname}' stopped.")
+            for indexed_name, pid in pids_to_stop:
+                print(f"waiting for {indexed_name} (pid {pid}) to stop...")
+                stop_process(pid, stopsignal, stoptime)
+                
+                if indexed_name in self.process_info:
+                    self.process_info[indexed_name]['state'] = 'STOPPED'
+                    self.process_info[indexed_name]['pid'] = 0
+
+            if program_name is None or program_name.lower() == 'all':
+                if pname in self.running_processes:
+                    self.running_processes[pname] = []
+            else:
+                if pname in self.running_processes:
+                    self.running_processes[pname] = [
+                        p for p in self.running_processes[pname] if p != indexed_name
+                    ]
+                
+            if program_name and program_name.lower() != 'all':
+                out.append(f"Process '{program_name}' stopped.")
+                print(f"Process '{program_name}' stopped.")
+            else:
+                out.append(f"Program '{pname}' stopped.")
+                print(f"Program '{pname}' stopped.")
 
         return "\n".join(out)
+
+
+    # ---------------------------------------------------------------------- #
+    #                             STATUS COMMAND                             #
+    # ---------------------------------------------------------------------- #
 
     def status_command(self, programs):
         out = []
         out.append(colored("Program status:", 'cyan', attrs=['underline']))
+
         for pname, pdata in programs.items():
-            pids = list(self.running_processes.get(pname, []))
-            if not pids:
+            numprocs = pdata.get('numprocs', 1)
+            has_running = False
+
+            for key, info in sorted(self.process_info.items()):
+                if info.get('program_name') == pname:
+                    state = info.get('state', 'UNKNOWN')
+                    pid = info.get('pid')
+                    
+                    if state not in ['STOPPED', 'FATAL'] and pid and pid != 0:
+                        try:
+                            os.kill(pid, 0)
+                            state = 'RUNNING'
+                            has_running = True
+                        except ProcessLookupError:
+                            state = 'STOPPED'
+                            self.process_info[key]['state'] = 'STOPPED'
+                            self.process_info[key]['pid'] = 0
+
+                    if state == 'RUNNING':
+                        status_color = 'green'
+                        uptime = int(time.time() - info.get('start_time', time.time()))
+                        status_str = f"{colored(state, status_color)} (pid {pid}, uptime {uptime}s)"
+                    elif state == 'FATAL':
+                        status_color = 'red'
+                        status_str = colored(state, status_color)
+                    elif state == 'STOPPED':
+                        status_color = 'red'
+                        status_str = colored(state, status_color)
+                    else:
+                        status_color = 'yellow'
+                        status_str = colored(state, status_color)
+
+                    out.append(f"- {key}: {status_str}")
+            
+            if not self.process_info or not any(info.get('program_name') == pname for info in self.process_info.values()):
                 out.append(f"- {pname}: {colored('STOPPED', 'red')}")
-            else:
-                running_pids = []
-                dead_pids = []
-                for pid in pids:
-                    try:
-                        os.kill(pid, 0)
-                        running_pids.append(pid)
-                    except ProcessLookupError:
-                        dead_pids.append(pid)
 
-                for dead_pid in dead_pids:
-                    if dead_pid in self.running_processes[pname]:
-                        self.running_processes[pname].remove(dead_pid)
-
-                if running_pids:
-                    if len(running_pids) == 1:
-                        process_key = f"{pname}_{running_pids[0]}"
-                        if process_key in self.process_info:
-                            uptime = int(
-                                time.time() - self.process_info[process_key]['start_time'])
-                            out.append(
-                                f"- {pname}: {colored('RUNNING', 'green')} (pid {running_pids[0]}, uptime {uptime}s)")
-                        else:
-                            out.append(
-                                f"- {pname}: {colored('RUNNING', 'green')} (pid {running_pids[0]})")
-                    else:
-                        out.append(
-                            f"- {pname}: {colored('RUNNING', 'green')} ({len(running_pids)} processes: {', '.join(map(str, running_pids))})")
-                else:
-                    recent_failures = [
-                        k for k in self.process_info.keys() if k.startswith(f"{pname}_")]
-                    if recent_failures:
-                        out.append(
-                            f"- {pname}: {colored('STOPPED', 'red')} (last process failed)")
-                    else:
-                        out.append(f"- {pname}: {colored('STOPPED', 'red')}")
-                    self.running_processes[pname] = []
         return "\n".join(out)
+    
+    # ---------------------------------------------------------------------- #
+    #                              HELP COMMAND                              #
+    # ---------------------------------------------------------------------- #
 
     def help(self):
         out = [colored("Available commands:", 'cyan', attrs=['underline'])]
@@ -420,12 +355,71 @@ class Commands:
             "reload": "Reload the configuration",
             "exit": "Exit the program",
             "help": "Show available commands",
+            "attach": "Attach console to running service (view live output)",
+            "detach": "Detach from service console (return to command prompt)",
         }.items():
             out.append(colored(f"- {cmd}", 'green') +
                        " " + colored(f": {desc}", 'white'))
         return "\n".join(out)
 
-    def process_command(self, command, program_name=None, programs=None):
+    # ---------------------------------------------------------------------- #
+    #                              RESTART COMMAND                           #
+    # ---------------------------------------------------------------------- #
+
+    def restart_command(self, program_name):
+        """Helper method to restart a specific program."""
+        self.stop_command(self.programs, program_name)
+        time.sleep(1)
+        return self.start_command(self.programs, program_name)
+
+    # ---------------------------------------------------------------------- #
+    #                              RELOAD COMMAND                            #
+    # ---------------------------------------------------------------------- #
+
+    def reload_command(self, program_name=None, config_path='config_file.yml'):
+        """Reload the configuration and restart affected programs."""
+        try:
+            new_programs = ConfigParser.parse_config_file(config_path)
+            out = []
+
+            if program_name is not None:
+                if program_name in new_programs:
+                    program_data = new_programs[program_name]
+                    if program_name not in self.programs or program_data != self.programs.get(program_name):
+                        self.programs[program_name] = program_data
+                        out.append(
+                            f"Reloading configuration for {program_name}")
+                        out.append(self.restart_command(program_name))
+                else:
+                    if program_name in self.programs:
+                        out.append(f"Removing program {program_name}")
+                        out.append(self.stop_command(
+                            self.programs, program_name))
+                        del self.programs[program_name]
+                return "\n".join(out) if out else "No changes needed for {program_name}"
+
+            for prog_name, prog_data in new_programs.items():
+                if prog_name not in self.programs or prog_data != self.programs.get(prog_name):
+                    self.programs[prog_name] = prog_data
+                    out.append(f"Reloading configuration for {prog_name}")
+                    out.append(self.restart_command(prog_name))
+
+            for prog_name in list(self.programs.keys()):
+                if prog_name not in new_programs:
+                    out.append(f"Removing program {prog_name}")
+                    out.append(self.stop_command(self.programs, prog_name))
+                    del self.programs[prog_name]
+
+            return "\n".join(out) if out else "No configuration changes needed"
+
+        except Exception as e:
+            return f"Error reloading configuration: {str(e)}"
+
+    # ---------------------------------------------------------------------- #
+    #                            Handle COMMANDs                             #
+    # ---------------------------------------------------------------------- #
+
+    def process_command(self, command, program_name=None, programs=None, config_path='config_file.yml'):
         cmd = command.strip().lower()
         if program_name and program_name.lower() == 'all':
             program_name = None
@@ -435,25 +429,12 @@ class Commands:
         if cmd == 'stop':
             return self.stop_command(programs or self.programs, program_name)
         if cmd == 'restart':
-            resp_stop = self.stop_command(
-                programs or self.programs, program_name)
-            time.sleep(1)
-            resp_start = self.start_command(
-                programs or self.programs, program_name)
-            return resp_stop + "\n" + resp_start
+            return self.restart_command(program_name)
         if cmd == 'status':
             return self.status_command(programs or self.programs)
         if cmd == 'help':
             return self.help()
-        if cmd == 'exit':
-            return "OK: exit"
         if cmd == 'reload':
-            return "OK: reload (not implemented)"
+            return self.reload_command(program_name=program_name, config_path=config_path)
 
         return f"ERROR: unknown command '{command}'"
-
-    def shutdown(self):
-        """Shutdown the commands handler and stop monitoring."""
-        self.running = False
-        if self.monitor_thread and self.monitor_thread.is_alive():
-            self.monitor_thread.join(timeout=2)

@@ -15,7 +15,7 @@ class ConfigParser:
         'numprocs': 1,
         'autostart': False,
         'autorestart': 'unexpected',
-        'exitcodes': [0],
+        'exitcodes': [1],
         'starttime': 1,
         'startretries': 3,
         'stopsignal': 'TERM',

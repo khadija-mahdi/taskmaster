@@ -22,17 +22,18 @@ class TaskmasterCtlServer:
     def start(self):
         """Start the Taskmaster server to listen for incoming connections."""
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # allow quick reuse of the address to avoid 'Address already in use'
         self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.settimeout(1.0)
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(5)
-        print(f"Taskmaster server listening on {self.host}:{self.port}")
 
     def accept_connection(self):
-        """Accept a new connection from a client."""
-        client_socket, addr = self.server_socket.accept()
-        print(f"Accepted connection from {addr}")
-        return client_socket
+        """Accept a new connection from a client with timeout handling."""
+        try:
+            client_socket, addr = self.server_socket.accept()
+            return client_socket
+        except socket.timeout:
+            return None
 
     def handle_client(self, client_socket):
         """Read a single request from a connected client and return the parsed
@@ -40,7 +41,6 @@ class TaskmasterCtlServer:
         the socket; the caller is responsible for sending a response and
         closing the socket.
         """
-        # Read one request (simple request/response protocol)
         data = client_socket.recv(4096)
         if not data:
             return None, None
@@ -63,10 +63,6 @@ class TaskmasterCtlServer:
         cmd_name = parts[0].lower()
         program_name = parts[1] if len(parts) > 1 else None
 
-        # Always return parsed command and optional argument. Do not
-        # validate membership here; let higher-level code (Commands)
-        # decide how to respond to unknown commands so the connection
-        # can stay open and the client receive a proper error message.
         return cmd_name, program_name
 
     def stop(self):
@@ -74,4 +70,3 @@ class TaskmasterCtlServer:
         if self.server_socket:
             self.server_socket.close()
             self.server_socket = None
-            print("Taskmaster server stopped.")
