@@ -49,6 +49,10 @@ class Supervisor:
                 continue
             for i in range(value.get('numprocs', 1)):
                 worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
+                worker_state = self._get_all_worker_states(worker_name)
+                if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
+                    print(f"{worker_name} is already running")
+                    continue
                 try:
                     pid = os.fork()
                 except OSError as e:
@@ -114,6 +118,7 @@ class Supervisor:
                             else:
                                 sig = signal.SIGTERM
                             os.kill(pid, sig)
+                            time.sleep(1)
                             print(f"Sent {sig.name} to {worker_name} (PID {pid})")
                             self._write_worker_state(worker_name, exit_code=143, message=f"Stopped by {sig.name}")
                             self._remove_worker_state(worker_name)
