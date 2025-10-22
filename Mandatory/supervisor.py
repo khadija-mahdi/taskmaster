@@ -56,7 +56,6 @@ class Supervisor:
             for i in range(value.get('numprocs', 1)):
                 worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
                 if restart:
-                    # print("Restarting **************************")
                     self.start_series[worker_name] -= 1
                 if not restart:
                     self.start_series[worker_name] = value.get('startretries', 0)
@@ -227,14 +226,11 @@ class Supervisor:
                             else:
                                 # grandchild exited before the start interval elapsed
                                 self._write_worker_state(worker_name, exit_code=1, message="Exited toooooo quickly during start")
-                                # if self._should_restart(worker_name, 1):
-                                #     self.start(worker_name, True)
                                 sys.exit(1)
                         except ChildProcessError:
                             # No such child -> treat as exited too quickly
                             self._write_worker_state(worker_name, exit_code=1, message="Exited toooooo quickly during start")
-                            # if self._should_restart(worker_name=worker_name, exit_code=1):
-                            #     self.start(worker_name, True) 
+
                             sys.exit(1)
                     # # Grandchild survived the start interval -> exit the first child successfully
                     sys.exit(0)
@@ -244,8 +240,6 @@ class Supervisor:
 
             # Write worker PID to state file
             start_time = time.perf_counter()
-            # worker_pid = os.getpid()
-            # print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {worker_pid}")
 
             env = os.environ.copy()
             prog_env = self.programs[worker].get('env')
@@ -263,8 +257,7 @@ class Supervisor:
             stderr_path = self.programs[worker].get('stderr', f"./logs/{worker_name}_stderr.log")
             
             os.makedirs(os.path.dirname(stdout_path) if os.path.dirname(stdout_path) else './logs', exist_ok=True)
-            # print("stdout_path =", stdout_path, file=sys.stdout, flush=True)
-            # Open files and pass to subprocess
+
             with open(stdout_path, 'a') as stdout_file, open(stderr_path, 'a') as stderr_file:
                 process = subprocess.Popen(
                     cmd.split(),
@@ -274,14 +267,7 @@ class Supervisor:
                     env=env
                 )
             self._write_worker_state(worker_name=worker_name, pid=process.pid)
-            
-            # start_check = self.programs[worker].get('starttime', 1)
-            # if elapsed_time < start_check:
-            #     exit_code = 1
-            #     status_message = "Exited too quickly during start"
-            #     exit(4)
-            
-            
+
             print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {process.pid}", file=sys.stdout, flush=True)
             exit_code = process.wait()
             end_time = time.perf_counter()
@@ -312,8 +298,7 @@ class Supervisor:
             sys.exit(exit_code)
 
         except Exception as e:
-            # print(f"error: {e}", file=sys.stderr)
-            # self._write_worker_state(worker_name, exit_code=1)
+
             sys.exit(1)
 
     def _should_restart(self, worker_name, exit_code):
@@ -355,14 +340,6 @@ class Supervisor:
                     
                     if program_name:
                         del self.child_pids[program_name]
-                        
-                        # print(f"status code = {exit_code} for the process {program_name}, and pid = {pid}", sys.stderr)  # Debug print
-                        
-                        # worker_state = self._get_all_worker_states(worker_name)
-                        # if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
-                    
-                        # Check if we should restart
-                        # print(f"exit code = {exit_code} for the process {program_name}, and pid = {pid}\n", file=sys.stderr)  # Debug print
                         if self._should_restart(program_name, exit_code) and self.programs[program_name].get('startretries', 0) > 0:
                             time.sleep(0.5)  # Brief delay before restart
                             self.start(program_name, restart=True)
@@ -375,23 +352,6 @@ class Supervisor:
             print(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} - Shutting down supervisor...")
             self.stop(None)
 
-
-    # def _monitor(self):
-    #     """Monitor child processes and handle their exit"""
-    #     try:
-    #         while self.child_pids:
-    #             try:
-    #                 pid, status = os.waitpid(-1, os.WNOHANG)
-    #                 # worker_states = self._get_all_worker_states(key)
-    #                 time.sleep(0.5)  # Small sleep to avoid busy waiting
-                    
-    #             except ChildProcessError:
-    #                 # No more children
-    #                 break
-                    
-    #     except KeyboardInterrupt:
-    #         print(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} - Shutting down supervisor...")
-    #         self.stop(None)
     
     def _write_worker_state(self, worker_name, pid=None, exit_code=None, message=None):
         """Write worker state to a file"""
@@ -468,19 +428,3 @@ class Supervisor:
                 pass
         return None
 
-
-
-
-            # start_check = self.programs[worker].get('starttime', 1)
-            # if elapsed_time < start_check:
-            #     exit_code = 1
-            #     status_message = "Exited too quickly during start"
-            #     exit(4)
- 
- 
- 
-            # worker_state = self._get_all_worker_states(worker_name)
-            # time.sleep(start_check)
-            # if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
-            #     print(f"{worker_name} is already running", file=sys.stderr)
-            
