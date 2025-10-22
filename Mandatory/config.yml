@@ -17,31 +17,31 @@ programs:
       STARTED_BY: taskmaster
       ANSWER: 42
 
-  # api:
-  #   cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
-  #   autorestart: true
-  #   numprocs: 4
-  #   exitcodes: [0, 2]
-  #   startretries: 3
-  #   autostart: false
-  #   env:
-  #     HOST: localhost
-  #     PORT: '8089'
-  #   workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
-  #   stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stdout
-  #   stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stderr
-  #   umask: 077
+  api:
+    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
+    autorestart: true
+    numprocs: 4
+    exitcodes: [0, 2]
+    startretries: 3
+    autostart: false
+    env:
+      HOST: localhost
+      PORT: '8089'
+    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stdout
+    stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stderr
+    umask: 077
 
   worker:
     cmd: python /home/hasabir/Desktop/projects/taskmaster/workdir/worker.py
-    numprocs: 1
+    # numprocs: 1
     umask: 022
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
     autostart: true
-    autorestart: unexpected
+    # autorestart: always
     exitcodes: 0
-    startretries: 3
-    starttime: 5
+    startretries: 2
+    # starttime: 5
     stopsignal: INT
     # stoptime: 10
     stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stdout

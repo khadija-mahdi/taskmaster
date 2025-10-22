@@ -1,3 +1,4 @@
+import errno
 import os
 import signal
 import subprocess
@@ -13,6 +14,7 @@ from ParseConfige import ConfigParser
 class Supervisor:
     def __init__(self, programs: dict, config_file_name: str):
         self.programs = programs
+        self.start_series = {}
         self.child_pids = {}
         self.config_file_name = config_file_name
         self.state_dir = '/tmp/taskmaster_states'
@@ -43,10 +45,43 @@ class Supervisor:
         else:
             print("Invalid command")
             
-    def start(self, arg):
+    def start(self, arg, restart=False):
         for key, value in self.programs.items():
             if not (arg == key or (value.get('autostart', True) and arg is None)):
                 continue
+
+            # Initialize start_series on first (non-restart) start or ensure it exists during restart
+            if not restart:
+                self.start_series[key] = value.get('startretries', 0)
+            else:
+                self.start_series.setdefault(key, value.get('startretries', 0))
+
+            # print(f"restart = {restart}, start_series = {self.start_series}")
+
+            if restart and self.start_series.get(key, 0) <= 0:
+                # print(f"Max restart attempts reached for {key}. Not restarting.")
+                self._write_worker_state(key, exit_code=1, message="Max restart attempts reached")
+                continue
+
+            if restart:
+                print("Restarting **************************")
+                self.start_series[key] -= 1
+            # if not restart:
+            #     for i in range(value.get('startretries', 3)):
+            #         worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
+
+            #         try:
+            #             pid = os.fork()
+            #         except OSError as e:
+            #             print(f"fork failed: {e}")
+            #             sys.exit(1)
+                    
+            #         if pid == 0:
+            #             self._worker(key, worker_name)
+            #         else:
+            #             self.child_pids[key] = pid
+            #     # if 
+            #     continue
             for i in range(value.get('numprocs', 1)):
                 worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
                 worker_state = self._get_all_worker_states(worker_name)
@@ -101,7 +136,7 @@ class Supervisor:
                 
                 # Get all worker states for this program
                 worker_states = self._get_all_worker_states(key)
-                print(worker_states)
+                # print(worker_states)
                 
                 if not worker_states:
                     print(f"{key} is not running")
@@ -185,36 +220,45 @@ class Supervisor:
     def _worker(self, worker, worker_name):
         """Execute the program in child process with output redirection"""
         try:
-            test = {}
-            pid = os.getpid()
+            # test = {}
+            # pid = os.getpid()
             
             os.setsid()
             
             try:
                 pid2 = os.fork()
                 if pid2 > 0:
-                    # First child: monitor the grandchild for a short "start" interval
-                    # pid2 is the grandchild PID. Ensure it stays alive for configured 'starttime' seconds.
+                    # # First child: monitor the grandchild for a short "start" interval
+                    # # pid2 is the grandchild PID. Ensure it stays alive for configured 'starttime' seconds.
                     start_check = self.programs[worker].get('starttime', 1)
-                    # end_time = time.time() + start_check
-                    # while time.time() < end_time:
-                    #     try:
-                    #         os.kill(pid2, 0)  # check if grandchild still exists
-                    #     except OSError:
-                    #         # Grandchild died before the start interval elapsed
-                    #         self._write_worker_state(worker_name, exit_code=1, message="Exited too quickly during start")
-                    #         sys.exit(1)
-                        # time.sleep(0.1)
-                    # Grandchild survived the start interval -> exit the first child successfully
+                    end_time = time.time() + start_check
+                    while time.time() < end_time:
+                        try:
+                            wpid, st = os.waitpid(pid2, os.WNOHANG)
+                            if wpid == 0:
+                                # grandchild still running, wait a bit and continue monitoring
+                                time.sleep(0.1)
+                                continue
+                            else:
+                                # grandchild exited before the start interval elapsed
+                                self._write_worker_state(worker_name, exit_code=1, message="Exited toooooo quickly during start")
+                                # if self._should_restart(worker_name, 1):
+                                #     self.start(worker_name, True)
+                                sys.exit(1)
+                        except ChildProcessError:
+                            # No such child -> treat as exited too quickly
+                            self._write_worker_state(worker_name, exit_code=1, message="Exited toooooo quickly during start")
+                            # if self._should_restart(worker_name=worker_name, exit_code=1):
+                            #     self.start(worker_name, True) 
+                            sys.exit(1)
+                    # # Grandchild survived the start interval -> exit the first child successfully
                     sys.exit(0)
-                    # process.wait()
             except OSError as e:
                 print(f"Second fork failed: {e}", file=sys.stderr)
                 sys.exit(0)
 
             # Write worker PID to state file
             start_time = time.perf_counter()
-            
             # worker_pid = os.getpid()
             # print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {worker_pid}")
 
@@ -245,15 +289,32 @@ class Supervisor:
                     env=env
                 )
             self._write_worker_state(worker_name=worker_name, pid=process.pid)
+            
+            # start_check = self.programs[worker].get('starttime', 1)
+            # if elapsed_time < start_check:
+            #     exit_code = 1
+            #     status_message = "Exited too quickly during start"
+            #     exit(4)
+            
+            
             print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {process.pid}", file=sys.stdout, flush=True)
             exit_code = process.wait()
             end_time = time.perf_counter()
             status_message = ""
             elapsed_time = end_time - start_time
+            
+            
+            
             if self.programs[worker].get('stoptime') and elapsed_time < self.programs[worker]['stoptime']:
-                print("wtf:", self.programs[worker]['stoptime'])
                 exit_code = 1
                 status_message = "Exited too quickly"
+                
+
+            
+            
+            
+            
+            
             # Write exit status to state file
             elif exit_code in self.programs[worker_name].get('exitcodes', [0]):
                 status_message = "Exited successfully"
@@ -266,19 +327,56 @@ class Supervisor:
             sys.exit(exit_code)
 
         except Exception as e:
-            print(f"error: {e}", file=sys.stderr)
+            # print(f"error: {e}", file=sys.stderr)
             # self._write_worker_state(worker_name, exit_code=1)
             sys.exit(1)
+
+    def _should_restart(self, worker_name, exit_code):
+        """Determine if a worker should be restarted based on its configuration"""
+        config = self.programs.get(worker_name)
+        if not config:
+            return False
+        
+        autorestart = config.get('autorestart', 'never')
+        
+        if autorestart == 'always':
+            return True
+        elif autorestart == 'unexpected':
+            expected_exitcodes = config.get('exitcodes', [0])
+            return False if exit_code in expected_exitcodes else True
+        else:  # 'never'
+            return False
 
     def _monitor(self):
         """Monitor child processes and handle their exit"""
         try:
             while self.child_pids:
                 try:
-                    pid, status = os.waitpid(-1, os.WNOHANG)
-                    # worker_states = self._get_all_worker_states(key)
-                    time.sleep(0.5)  # Small sleep to avoid busy waiting
+                    pid, status = os.waitpid(-1, 0)  # Changed to blocking wait
                     
+                    if os.WIFEXITED(status):
+                        exit_code = os.WEXITSTATUS(status)
+                    elif os.WIFSIGNALED(status):
+                        exit_code = 128 + os.WTERMSIG(status)
+                    else:
+                        exit_code = 1
+                    
+                    # Find which program this PID belongs to
+                    program_name = None
+                    for prog, prog_pid in self.child_pids.items():
+                        if prog_pid == pid:
+                            program_name = prog
+                            break
+                    
+                    if program_name:
+                        del self.child_pids[program_name]
+                        
+                        # Check if we should restart
+                        if self._should_restart(program_name, exit_code):
+                            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO Restarting {program_name}")
+                            time.sleep(1)  # Brief delay before restart
+                            self.start(program_name, restart=True)
+                        
                 except ChildProcessError:
                     # No more children
                     break
@@ -286,6 +384,24 @@ class Supervisor:
         except KeyboardInterrupt:
             print(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} - Shutting down supervisor...")
             self.stop(None)
+
+
+    # def _monitor(self):
+    #     """Monitor child processes and handle their exit"""
+    #     try:
+    #         while self.child_pids:
+    #             try:
+    #                 pid, status = os.waitpid(-1, os.WNOHANG)
+    #                 # worker_states = self._get_all_worker_states(key)
+    #                 time.sleep(0.5)  # Small sleep to avoid busy waiting
+                    
+    #             except ChildProcessError:
+    #                 # No more children
+    #                 break
+                    
+    #     except KeyboardInterrupt:
+    #         print(f"\n{time.strftime('%Y-%m-%d %H:%M:%S')} - Shutting down supervisor...")
+    #         self.stop(None)
     
     def _write_worker_state(self, worker_name, pid=None, exit_code=None, message=None):
         """Write worker state to a file"""
@@ -364,3 +480,17 @@ class Supervisor:
 
 
 
+
+            # start_check = self.programs[worker].get('starttime', 1)
+            # if elapsed_time < start_check:
+            #     exit_code = 1
+            #     status_message = "Exited too quickly during start"
+            #     exit(4)
+ 
+ 
+ 
+            # worker_state = self._get_all_worker_states(worker_name)
+            # time.sleep(start_check)
+            # if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
+            #     print(f"{worker_name} is already running", file=sys.stderr)
+            
