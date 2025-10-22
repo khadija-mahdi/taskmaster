@@ -64,24 +64,9 @@ class Supervisor:
                 continue
 
             if restart:
-                print("Restarting **************************")
+                # print("Restarting **************************")
                 self.start_series[key] -= 1
-            # if not restart:
-            #     for i in range(value.get('startretries', 3)):
-            #         worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
 
-            #         try:
-            #             pid = os.fork()
-            #         except OSError as e:
-            #             print(f"fork failed: {e}")
-            #             sys.exit(1)
-                    
-            #         if pid == 0:
-            #             self._worker(key, worker_name)
-            #         else:
-            #             self.child_pids[key] = pid
-            #     # if 
-            #     continue
             for i in range(value.get('numprocs', 1)):
                 worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
                 worker_state = self._get_all_worker_states(worker_name)
@@ -278,7 +263,7 @@ class Supervisor:
             stderr_path = self.programs[worker].get('stderr', f"./logs/{worker_name}_stderr.log")
             
             os.makedirs(os.path.dirname(stdout_path) if os.path.dirname(stdout_path) else './logs', exist_ok=True)
-            
+            # print("stdout_path =", stdout_path, file=sys.stdout, flush=True)
             # Open files and pass to subprocess
             with open(stdout_path, 'a') as stdout_file, open(stderr_path, 'a') as stderr_file:
                 process = subprocess.Popen(
@@ -371,10 +356,15 @@ class Supervisor:
                     if program_name:
                         del self.child_pids[program_name]
                         
+                        # print(f"status code = {exit_code} for the process {program_name}, and pid = {pid}", sys.stderr)  # Debug print
+                        
+                        # worker_state = self._get_all_worker_states(worker_name)
+                        # if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
+                    
                         # Check if we should restart
-                        if self._should_restart(program_name, exit_code):
-                            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO Restarting {program_name}")
-                            time.sleep(1)  # Brief delay before restart
+                        # print(f"exit code = {exit_code} for the process {program_name}, and pid = {pid}\n", file=sys.stderr)  # Debug print
+                        if self._should_restart(program_name, exit_code) and self.programs[program_name].get('startretries', 0) > 0:
+                            time.sleep(0.5)  # Brief delay before restart
                             self.start(program_name, restart=True)
                         
                 except ChildProcessError:

@@ -20,16 +20,16 @@ programs:
   api:
     cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
     autorestart: true
-    numprocs: 4
+    numprocs: 2
     exitcodes: [0, 2]
-    startretries: 3
+    startretries: 2
     autostart: false
     env:
       HOST: localhost
       PORT: '8089'
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
-    stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stdout
-    stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stderr
+    # stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stdout
+    # stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/api.stderr
     umask: 077
 
   worker:
@@ -38,10 +38,10 @@ programs:
     umask: 022
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
     autostart: true
-    # autorestart: always
+    autorestart: unexpected
     exitcodes: 0
     startretries: 2
-    # starttime: 5
+    starttime: 3
     stopsignal: INT
     # stoptime: 10
     stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stdout
