@@ -107,6 +107,8 @@ class Supervisor:
                                 sig = signal.SIGTERM
                             os.kill(pid, sig)
                             print(f"Sent {sig.name} to {worker_name} (PID {pid})")
+                            self._write_worker_state(worker_name, exit_code=143, message=f"Stopped by {sig.name}")
+                            # self._remove_worker_state(worker_name)
                         except OSError as e:
                             print(f"Failed to stop {worker_name} (PID {pid}): {e}")
     
@@ -223,7 +225,7 @@ class Supervisor:
                     text=True,
                     env=env
                 )
-            self._write_worker_state(worker_name, pid=process.pid)
+            self._write_worker_state(worker_name=worker_name, pid=process.pid)
             print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {process.pid}", file=sys.stdout, flush=True)
             exit_code = process.wait()
             end_time = time.perf_counter()
@@ -238,6 +240,7 @@ class Supervisor:
                 status_message = "Exited successfully"
             else:
                 status_message = f"Error exited with code {exit_code}"
+            sys.sleep(0.1)
             self._write_worker_state(worker_name, exit_code=exit_code, message=status_message)
             
             
@@ -245,7 +248,7 @@ class Supervisor:
 
         except Exception as e:
             # print(f"error: {e}", file=sys.stderr)
-            self._write_worker_state(worker_name, exit_code=1)
+            # self._write_worker_state(worker_name, exit_code=1)
             sys.exit(1)
 
     def _monitor(self):
@@ -267,6 +270,7 @@ class Supervisor:
     
     def _write_worker_state(self, worker_name, pid=None, exit_code=None, message=None):
         """Write worker state to a file"""
+        print('exit code frm write worker state function = ', exit_code)
         state_file = os.path.join(self.state_dir, f'{worker_name}.state')
         state = {}
         
@@ -292,6 +296,15 @@ class Supervisor:
         # Write state
         with open(state_file, 'w') as f:
             json.dump(state, f)
+    
+    def _remove_worker_state(self, worker_name):
+        """Remove worker state file"""
+        state_file = os.path.join(self.state_dir, f'{worker_name}.state')
+        if os.path.exists(state_file):
+            try:
+                os.remove(state_file)
+            except OSError as e:
+                print(f"Warning: Could not remove state file: {e}")
 
     def _read_worker_state(self, worker_name):
         """Read worker state from file"""
