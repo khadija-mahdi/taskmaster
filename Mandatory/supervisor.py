@@ -51,25 +51,25 @@ class Supervisor:
                 continue
 
             # Initialize start_series on first (non-restart) start or ensure it exists during restart
-            if not restart:
-                self.start_series[key] = value.get('startretries', 0)
-            else:
-                self.start_series.setdefault(key, value.get('startretries', 0))
 
-            # print(f"restart = {restart}, start_series = {self.start_series}")
-
-            if restart and self.start_series.get(key, 0) <= 0:
-                # print(f"Max restart attempts reached for {key}. Not restarting.")
-                self._write_worker_state(key, exit_code=1, message="Max restart attempts reached")
-                continue
-
-            if restart:
-                # print("Restarting **************************")
-                self.start_series[key] -= 1
 
             for i in range(value.get('numprocs', 1)):
                 worker_name = f"{key}:{key}_{i}" if value.get('numprocs', 1) > 1 else key
+                if restart:
+                    # print("Restarting **************************")
+                    self.start_series[worker_name] -= 1
+                if not restart:
+                    self.start_series[worker_name] = value.get('startretries', 0)
+                else:
+                    self.start_series.setdefault(worker_name, value.get('startretries', 0))
+
+                # print(f"restart = {restart}, start_series = {self.start_series}")
+
                 worker_state = self._get_all_worker_states(worker_name)
+                if restart and self.start_series.get(worker_name, 0) <= 0 and worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] != "running":
+                    # print(f"Max restart attempts reached for {worker_name}. Not restarting.")
+                    self._write_worker_state(worker_name, exit_code=1, message="Max restart attempts reached")
+                    continue
                 if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
                     print(f"{worker_name} is already running")
                     continue
