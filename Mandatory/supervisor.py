@@ -5,6 +5,8 @@ import sys
 import time
 import json
 
+from termcolor import colored
+
 from ParseConfige import ConfigParser
 
 
@@ -23,6 +25,10 @@ class Supervisor:
     def supervise(self, cmd):
         self.cmd = cmd[0]
         self.arg = cmd[1] if len(cmd) > 1 else None
+        
+        if self.arg not in self.programs and self.arg is not None:
+            print(colored(f"Program '{self.arg}' not found in configuration.", "red"))
+            return
 
         if self.cmd == "start":
             self.start(self.arg)
@@ -91,6 +97,7 @@ class Supervisor:
                 
                 # Get all worker states for this program
                 worker_states = self._get_all_worker_states(key)
+                print(worker_states)
                 
                 if not worker_states:
                     print(f"{key} is not running")
@@ -99,6 +106,7 @@ class Supervisor:
                 # Stop all workers for this program
                 for worker_name, state in worker_states.items():
                     if state.get('status') == 'running' and 'pid' in state:
+                    # if state.get('status') == 'running' and 'pid' in state:
                         pid = state['pid']
                         try:
                             if self.programs[key].get('stopsignal'):
@@ -108,9 +116,13 @@ class Supervisor:
                             os.kill(pid, sig)
                             print(f"Sent {sig.name} to {worker_name} (PID {pid})")
                             self._write_worker_state(worker_name, exit_code=143, message=f"Stopped by {sig.name}")
-                            # self._remove_worker_state(worker_name)
+                            self._remove_worker_state(worker_name)
                         except OSError as e:
                             print(f"Failed to stop {worker_name} (PID {pid}): {e}")
+                    else:
+                        print(f"{worker_name} is not running")
+                        self._remove_worker_state(worker_name)
+                        
     
     def reload(self, arg):
         new_programs = ConfigParser.parse_config_file(self.config_file_name)
@@ -241,7 +253,7 @@ class Supervisor:
             elif exit_code in self.programs[worker_name].get('exitcodes', [0]):
                 status_message = "Exited successfully"
             else:
-                status_message = f"Error exited with code {exit_code}"
+                status_message = f"Exited with code {exit_code}"
             time.sleep(0.1)
             self._write_worker_state(worker_name, exit_code=exit_code, message=status_message)
             
@@ -302,11 +314,28 @@ class Supervisor:
     def _remove_worker_state(self, worker_name):
         """Remove worker state file"""
         state_file = os.path.join(self.state_dir, f'{worker_name}.state')
-        if os.path.exists(state_file):
+        try:
+            # Normalize and ensure we don't remove files outside the state directory
+            state_file = os.path.abspath(state_file)
+            state_dir_abs = os.path.abspath(self.state_dir)
             try:
-                os.remove(state_file)
-            except OSError as e:
-                print(f"Warning: Could not remove state file: {e}")
+                if os.path.commonpath([state_dir_abs, state_file]) != state_dir_abs:
+                    print(f"Warning: Attempt to remove file outside state dir: {state_file}", file=sys.stderr)
+                    return
+            except Exception:
+                # If commonpath fails for any reason, bail out safely
+                print(f"Warning: Could not verify state file path: {state_file}", file=sys.stderr)
+                return
+
+            # Try removing the file without a preceding exists() check to avoid TOCTOU races
+            os.remove(state_file)
+        except FileNotFoundError:
+            # Already removed -> nothing to do
+            return
+        except PermissionError as e:
+            print(f"Warning: Permission denied when removing state file {state_file}: {e}", file=sys.stderr)
+        except OSError as e:
+            print(f"Warning: Could not remove state file {state_file}: {e}", file=sys.stderr)
 
     def _read_worker_state(self, worker_name):
         """Read worker state from file"""

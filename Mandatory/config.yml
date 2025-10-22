@@ -20,7 +20,7 @@ programs:
   # api:
   #   cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
   #   autorestart: true
-  #   numprocs: 3
+  #   numprocs: 4
   #   exitcodes: [0, 2]
   #   startretries: 3
   #   autostart: false
