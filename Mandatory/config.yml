@@ -19,10 +19,10 @@ programs:
 
   api:
     cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
-    autorestart: true
+    # autorestart: true
     numprocs: 2
     exitcodes: [0, 2]
-    startretries: 2
+    # startretries: 2
     autostart: false
     env:
       HOST: localhost

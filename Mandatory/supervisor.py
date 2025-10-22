@@ -42,6 +42,7 @@ class Supervisor:
             self.stop(self.arg)
         elif self.cmd == "reload":
             self.reload(self.arg)
+            
         else:
             print("Invalid command")
             
@@ -106,14 +107,14 @@ class Supervisor:
                     else:
                         print(f"{worker_name} is not running")
 
-    def restart(self, arg):
+    def restart(self, arg, force=False):
         for key in self.programs.keys():
             if arg is not None and arg != key:
                 continue
-            self.stop(key)
+            self.stop(key, force)
             self.start(key)
 
-    def stop(self, arg):
+    def stop(self, arg, force=False):
         for key in self.programs.keys():
                 if arg is not None and arg != key:
                     continue
@@ -132,7 +133,9 @@ class Supervisor:
                     # if state.get('status') == 'running' and 'pid' in state:
                         pid = state['pid']
                         try:
-                            if self.programs[key].get('stopsignal'):
+                            if force:
+                                sig = signal.SIGHUP
+                            elif self.programs[key].get('stopsignal'):
                                 sig = getattr(signal, f"SIG{self.programs[key]['stopsignal']}", signal.SIGTERM)
                             else:
                                 sig = signal.SIGTERM
@@ -158,11 +161,11 @@ class Supervisor:
                 program_data = new_programs[arg]
                 if arg not in self.programs or program_data != self.programs.get(arg):
                     self.programs[arg] = program_data
-                    self.restart(arg)
+                    self.restart(arg, True)
             # If program was removed from config, stop and delete it
             else:
                 if arg in self.programs:
-                    self.stop(arg)
+                    self.stop(arg, True)#! send SIGHUP
                     del self.programs[arg]
             return
 
@@ -170,13 +173,13 @@ class Supervisor:
         for program_name, program_data in new_programs.items():
             if program_name not in self.programs or program_data != self.programs.get(program_name):
                 self.programs[program_name] = program_data
-                self.restart(program_name)
+                self.restart(program_name, True)
 
         # Stop and remove programs that are no longer present in the new config.
         # Iterate over a list copy to avoid "dictionary changed size during iteration".
         for program_name in list(self.programs.keys()):
             if program_name not in new_programs:
-                self.stop(program_name)
+                self.stop(program_name, True)
                 del self.programs[program_name]
 
 
