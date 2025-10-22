@@ -196,9 +196,8 @@ class Supervisor:
             # Write worker PID to state file
             start_time = time.perf_counter()
             
-            worker_pid = os.getpid()
-            self._write_worker_state(worker_name, pid=worker_pid)
-            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {worker_pid}")
+            # worker_pid = os.getpid()
+            # print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {worker_pid}")
 
             env = os.environ.copy()
             for key, value in self.programs[worker]["env"].items():
@@ -224,7 +223,8 @@ class Supervisor:
                     text=True,
                     env=env
                 )
-                
+            self._write_worker_state(worker_name, pid=process.pid)
+            print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {process.pid}", file=sys.stdout, flush=True)
             exit_code = process.wait()
             end_time = time.perf_counter()
             status_message = ""

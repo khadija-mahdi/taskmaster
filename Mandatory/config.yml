@@ -34,7 +34,7 @@ programs:
 
   worker:
     cmd: python /home/hasabir/Desktop/projects/taskmaster/workdir/worker.py
-    numprocs: 3
+    numprocs: 1
     umask: 022
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
     autostart: true
