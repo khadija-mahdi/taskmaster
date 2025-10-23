@@ -30,58 +30,23 @@ def _print_banner():
     print()
 
 
-commands = {
-    "start": "Start the service or process",
-    "stop": "Stop the service or process",
-    "restart": "Restart the service or process",
-    "status": "Show the current status",
-    "reload": "Reload the configuration",
-    "exit": "Exit the program",
-    "help": "Show available commands"
-}
 
 
-def help():
-    print(colored("Available commands:", 'cyan', attrs=['underline']))
-    for cmd, desc in commands.items():
-        print(colored(f"- {cmd}", 'green'), colored(f": {desc}", 'white'))
-
-
-def parseCommandLineArgs(cmd):
-    key = cmd.strip()
-    if key not in commands:
-        print(colored("Invalid command. Type 'help' to see available commands.", 'red'))
-        return
-    else:
-        switcher = {
-            "start": lambda: print(colored("Starting...", 'green')),
-            "stop": lambda: print(colored("Stopping...", 'yellow')),
-            "restart": lambda: print(colored("Restarting...", 'yellow')),
-            "status": lambda: print(colored("Status: (not implemented)", 'cyan')),
-            "reload": lambda: print(colored("Reloading...", 'green')),
-            "exit": lambda: sys.exit(0),
-            "help": help
-        }
-    func = switcher.get(key, lambda: print(colored("Invalid command", 'red')))
-    return func()
-
-
-def _sigint_handler(signum, frame):
-    print('\n' + colored('Interrupted. Exiting...', 'red'))
-    sys.exit(130)
 
 
 def init(file_path):
     try:
-        signal.signal(signal.SIGINT, _sigint_handler)
+        print(colored("Initializing Task Master CLI...", "yellow"), file_path)
+        # return if control+c is pressed
+        signal.signal(signal.SIGINT, lambda sig, frame: sys.exit(0))        
         _print_banner()
 
         programs = ConfigParser.parse_config_file(file_path)
-        print(programs)
 
         print(colored("Configuration loaded successfully!", "green"))
         print(
             colored(f"Found {len(programs)} program(s): {list(programs.keys())}\n", "cyan"))
+        return programs
     except Exception as e:
         print(colored(f"Error during initialization: {e}", "red"), file=sys.stderr)
         sys.exit(1)

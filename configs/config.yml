@@ -1,0 +1,106 @@
+programs:
+  webapp:
+    cmd: python3 ../../workdir/app.py
+    numprocs: 1
+    umask: 022
+    workingdir: ../../workdir
+    autostart: false
+    autorestart: unexpected
+    exitcodes: 0
+    startretries: 3
+    starttime: 5
+    stopsignal: TERM
+    stoptime: 10
+    stdout: ../../logs/webapp.stdout
+    stderr: ../../logs/webapp.stderr
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 42
+
+  api:
+    cmd: python3 ../../workdir/api_server.py
+    # autorestart: true
+    numprocs: 2
+    exitcodes: [0, 2]
+    # startretries: 2
+    autostart: false
+    env:
+      HOST: localhost
+      PORT: '8089'
+    workingdir: ../../workdir
+
+    umask: 077
+
+  worker:
+    cmd: python ../../workdir/worker.py
+    # numprocs: 1
+    umask: 022
+    workingdir: ../../workdir
+    autostart: true
+    autorestart: unexpected
+    exitcodes: 0
+    startretries: 2
+    starttime: 3
+    stopsignal: INT
+    stoptime: 10
+    stdout: ../../logs/worker.stdout
+    stderr: ../../logs/worker.stderr
+    # env:
+    #   STARTED_BY: taskmaster
+    #   ANSWER: 42
+    exitcodes: [0, 2]
+
+  ls:
+    cmd: /bin/ls -la
+    numprocs: 1
+    umask: 022
+    workingdir: ../../workdir
+    autostart: false
+    autorestart: never
+
+    stdout: ../../logs/ls.stdout
+    stderr: ../../logs/ls.stderr
+  
+
+#  worker:
+# autostart=true
+# autorestart=true
+# startretries=3
+# numprocs=3
+
+
+
+  # nginx:
+  #   cmd: "/usr/local/bin/nginx -c /etc/nginx/workdir.conf"
+  #   numprocs: 1
+  #   umask: 022 # default permissions
+  #   workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+  #   autostart: true
+  #   autorestart: unexpected
+  #   exitcodes:
+  #     - 0
+  #     - 2
+  #   startretries: 3
+  #   starttime: 5
+  #   stopsignal: TERM
+  #   stoptime: 10
+  #   stdout: /tmp/nginx.stdout
+  #   stderr: /tmp/nginx.stderr
+  #   env:
+  #     STARTED_BY: taskmaster
+  #     ANSWER: 42
+
+  # vogsphere:
+  #   cmd: "/usr/local/bin/vogsphere-worker --no-prefork"
+  #   numprocs: 8
+  #   umask: 077
+  #   workingdir: /tmp
+  #   autostart: true
+  #   autorestart: unexpected
+  #   exitcodes: 0
+  #   startretries: 3
+  #   starttime: 5
+  #   stopsignal: USR1
+  #   stoptime: 10
+  #   stdout: /tmp/vgsworker.stdout
+  #   stderr: /tmp/vgsworker.stder
