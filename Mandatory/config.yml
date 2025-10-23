@@ -50,6 +50,19 @@ programs:
     #   STARTED_BY: taskmaster
     #   ANSWER: 42
     exitcodes: [0, 2]
+
+  ls:
+    cmd: /bin/ls -la
+    numprocs: 1
+    umask: 022
+    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    autostart: false
+    autorestart: always
+    startretries: 2
+    starttime: 3
+
+    stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/ls.stdout
+    stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/ls.stderr
   
 
 #  worker:

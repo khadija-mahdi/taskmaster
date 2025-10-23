@@ -217,7 +217,7 @@ class Supervisor:
                 if pid2 > 0:
                     # # First child: monitor the grandchild for a short "start" interval
                     # # pid2 is the grandchild PID. Ensure it stays alive for configured 'starttime' seconds.
-                    start_check = self.programs[worker].get('starttime', 1)
+                    start_check = self.programs[worker].get('starttime', 0.0)
                     end_time = time.time() + start_check
                     while time.time() < end_time:
                         try:
