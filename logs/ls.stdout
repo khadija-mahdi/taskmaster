@@ -7,3 +7,39 @@ drwx------ 2 hasabir hasabir 4096 Oct 23 13:34 logs
 -rw-rw-r-- 1 hasabir hasabir  993 Oct 23 13:13 worker.py
 -rw-r--r-- 1 hasabir hasabir  252 Oct 23 13:25 worker.stderr
 -rw-r--r-- 1 hasabir hasabir    0 Oct 23 13:25 worker.stdout
+total 28
+drwxrwxr-x 3 hasabir hasabir 4096 Oct 23 13:34 .
+drwxrwxr-x 8 hasabir hasabir 4096 Oct 23 13:31 ..
+-rw-rw-r-- 1 hasabir hasabir  603 Oct 23 13:12 api_server.py
+-rwxrwxr-x 1 hasabir hasabir 1326 Oct 23 13:12 app.py
+drwx------ 2 hasabir hasabir 4096 Oct 23 13:34 logs
+-rw-rw-r-- 1 hasabir hasabir  993 Oct 23 13:13 worker.py
+-rw-r--r-- 1 hasabir hasabir  252 Oct 23 13:25 worker.stderr
+-rw-r--r-- 1 hasabir hasabir    0 Oct 23 13:25 worker.stdout
+total 28
+drwxrwxr-x 3 hasabir hasabir 4096 Oct 23 13:34 .
+drwxrwxr-x 8 hasabir hasabir 4096 Oct 23 13:31 ..
+-rw-rw-r-- 1 hasabir hasabir  603 Oct 23 13:12 api_server.py
+-rwxrwxr-x 1 hasabir hasabir 1326 Oct 23 13:12 app.py
+drwx------ 2 hasabir hasabir 4096 Oct 23 13:34 logs
+-rw-rw-r-- 1 hasabir hasabir  993 Oct 23 13:13 worker.py
+-rw-r--r-- 1 hasabir hasabir  252 Oct 23 13:25 worker.stderr
+-rw-r--r-- 1 hasabir hasabir    0 Oct 23 13:25 worker.stdout
+total 28
+drwxrwxr-x 3 hasabir hasabir 4096 Oct 23 13:34 .
+drwxrwxr-x 8 hasabir hasabir 4096 Oct 23 13:31 ..
+-rw-rw-r-- 1 hasabir hasabir  603 Oct 23 13:12 api_server.py
+-rwxrwxr-x 1 hasabir hasabir 1326 Oct 23 13:12 app.py
+drwx------ 2 hasabir hasabir 4096 Oct 23 13:34 logs
+-rw-rw-r-- 1 hasabir hasabir  993 Oct 23 13:13 worker.py
+-rw-r--r-- 1 hasabir hasabir  252 Oct 23 13:25 worker.stderr
+-rw-r--r-- 1 hasabir hasabir    0 Oct 23 13:25 worker.stdout
+total 28
+drwxrwxr-x 3 hasabir hasabir 4096 Oct 23 13:34 .
+drwxrwxr-x 8 hasabir hasabir 4096 Oct 23 13:31 ..
+-rw-rw-r-- 1 hasabir hasabir  603 Oct 23 13:12 api_server.py
+-rwxrwxr-x 1 hasabir hasabir 1326 Oct 23 13:12 app.py
+drwx------ 2 hasabir hasabir 4096 Oct 23 13:34 logs
+-rw-rw-r-- 1 hasabir hasabir  993 Oct 23 13:13 worker.py
+-rw-r--r-- 1 hasabir hasabir  252 Oct 23 13:25 worker.stderr
+-rw-r--r-- 1 hasabir hasabir    0 Oct 23 13:25 worker.stdout

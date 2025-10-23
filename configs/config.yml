@@ -18,7 +18,7 @@ programs:
       ANSWER: 42
 
   api:
-    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/api_server.py
+    cmd: /home/hasabir/miniconda3/bin/python ../workdir/api_server.py
     # autorestart: true
     numprocs: 2
     exitcodes: [0, 2]
@@ -32,7 +32,7 @@ programs:
     umask: 077
 
   worker:
-    cmd: python /home/hasabir/Desktop/projects/taskmaster/workdir/worker.py
+    cmd: python ../workdir/worker.py
     # numprocs: 1
     umask: 022
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir

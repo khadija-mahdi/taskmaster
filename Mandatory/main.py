@@ -25,6 +25,7 @@ def main():
         args = argsparser()
         programs = init(args.config)
         supervisor = Supervisor(programs, args.config)
+        supervisor.supervise(('autostart', ))
         while True:
             user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
             if user_input:
