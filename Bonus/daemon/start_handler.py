@@ -47,6 +47,7 @@ class StartHandler:
             log_event("PROCESS_DIED", f"'{indexed_name}' died unexpectedly with exit code {exit_code}")
         else:
             log_event("PROCESS_EXITED", f"'{indexed_name}' exited with expected code {exit_code}")
+            return True
 
         cleanup_failed_process(indexed_name, pid, self.commands.running_processes, self.commands.process_info)
         return False
@@ -100,7 +101,7 @@ class StartHandler:
                                                         exit_code, starttime, exitcodes, 
                                                         retry_count, out)
                     retry_count += 1
-                    if retry_count < startretries and autorestart:
+                    if retry_count < startretries + 1 and autorestart and not success:
                         print(f"\nINFO retrying: '{indexed_name}' (attempt {retry_count}/{startretries})")
                         time.sleep(1)
                         continue

@@ -25,10 +25,17 @@ def main():
 
     try:
         while True:
-            cmd = input("taskmasterctl> ").strip()
-            readline.add_history(cmd)
-            if cmd.lower() == "exit":
-                break
+            try:
+                cmd = input("taskmasterctl> ").strip()
+                readline.add_history(cmd)
+                if cmd.lower() == "exit":
+                    break
+            except KeyboardInterrupt:
+                print("\nUse 'exit' to quit")
+                continue
+            except EOFError:
+                print("\nUse 'exit' to quit")
+                continue
 
             try:
                 cmd_parts = cmd.split()
@@ -44,17 +51,22 @@ def main():
                     print(response)
             except (BrokenPipeError, ConnectionResetError, OSError, ConnectionError) as conn_err:
                 print("Connection error:", conn_err, "- attempting to reconnect...")
-                try:
-                    client.connect()
-                    print("Reconnected.")
+                retry_count = 0
+                max_retries = 3
+                while retry_count < max_retries:
                     try:
+                        client.connect()
+                        print("Reconnected.")
                         response = client.send_command(cmd)
-                    except Exception as send_err:
-                        print("Failed to send after reconnect:", send_err)
-                        continue  
-                except Exception as reconnect_err:
-                    print("Reconnect failed:", reconnect_err)
-                    continue 
+                        print(response)
+                        break
+                    except Exception as retry_err:
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            print(f"Retry {retry_count}/{max_retries} failed:", retry_err)
+                        else:
+                            print("Maximum retries reached. Please check if the server is running.")
+                        continue
             except Exception as e:
                 print("Error sending command:", e)
                 continue

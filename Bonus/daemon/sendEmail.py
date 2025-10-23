@@ -1,13 +1,15 @@
 import smtplib
 from email.message import EmailMessage
+from email_config import get_email_config
 
 class EmailAlerter:
-    def __init__(self, smtp_server, smtp_port, username, password, recipients):
-        self.smtp_server = smtp_server
-        self.smtp_port = smtp_port
-        self.username = username
-        self.password = password
-        self.recipients = recipients
+    def __init__(self):
+        config = get_email_config()
+        self.smtp_server = config['smtp_server']
+        self.smtp_port = config['smtp_port']
+        self.username = config['username']
+        self.password = config['password']
+        self.recipients = config['recipients']
     
     def send_alert(self, subject, message, severity="INFO"):
         try:

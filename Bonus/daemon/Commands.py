@@ -21,13 +21,7 @@ class Commands:
         self.running = True
         self.is_attach = False
 
-        self.email_alerter = EmailAlerter(
-            smtp_server="smtp.gmail.com",
-            smtp_port=465,
-            username="khadiijamahdii@gmail.com",
-            password="femn jshx icni vovr",
-            recipients=["khadijamahdi6@gmail.com"]
-        )
+        self.email_alerter = EmailAlerter()
 
     # ---------------------------------------------------------------------- #
     #                          ATTACH/DETACH COMMANDS                        #
@@ -223,7 +217,7 @@ class Commands:
             return colored(f"Error: {str(e)}", "red")
 
     # ---------------------------------------------------------------------- #
-    #                          MODIFIED RUN_PROCESS                          #
+    #                          RUN_PROCESS                                  #
     # ---------------------------------------------------------------------- #
 
     def run_process_with_pty(self, program, indexed_name, is_attach=False):
