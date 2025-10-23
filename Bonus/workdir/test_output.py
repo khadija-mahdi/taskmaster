@@ -1,14 +1,22 @@
 #!/usr/bin/env python3
-import time
 import sys
 
-print("Test process started - generating output every 2 seconds...")
-print("This is a test process for attach/detach functionality")
-sys.stdout.flush()
+print("Echo test process started")
+print("Type something and press Enter - I'll echo it back")
+print()
 
-counter = 0
 while True:
-    counter += 1
-    print(f"Output #{counter} - {time.strftime('%H:%M:%S')}")
-    sys.stdout.flush()
-    time.sleep(2)
+    try:
+        line = sys.stdin.readline()
+        if not line:  # EOF
+            break
+        
+        line = line.strip()
+        if line:
+            print(f"You said: {line}")
+            sys.stdout.flush()
+            
+    except (KeyboardInterrupt, EOFError, OSError):
+        print("\nProcess terminated")
+        sys.stdout.flush()
+        break

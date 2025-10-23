@@ -1,4 +1,8 @@
 import socket
+import threading
+import time
+import select
+import os
 from termcolor import colored
 
 
@@ -11,7 +15,6 @@ class TaskmasterCtlServer:
         "reload": "Reload the configuration",
         "exit": "Exit the program",
         "help": "Show available commands"
-
     }
 
     def __init__(self, host='localhost', port=12345):
@@ -37,17 +40,45 @@ class TaskmasterCtlServer:
 
     def handle_client(self, client_socket):
         """Read a single request from a connected client and return the parsed
-        command name and optional program name. This function does NOT close
-        the socket; the caller is responsible for sending a response and
-        closing the socket.
+        command name and optional program name.
         """
-        data = client_socket.recv(4096)
-        if not data:
-            return None, None
+        try:
+            data = client_socket.recv(4096)
+            if not data:
+                return None, None, None
 
-        command = data.decode('utf-8')
-        cmd_name, program_name = self.process_command(command)
-        return cmd_name, program_name
+            command = data.decode('utf-8').strip()
+            
+            # Handle attach command
+            if command.startswith("attach "):
+                parts = command.split(maxsplit=1)
+                if len(parts) > 1:
+                    program_name = parts[1]
+                    return "attach", program_name, None
+                return "attach", None, None
+            
+            # Handle detach command
+            elif command.startswith("detach "):
+                parts = command.split(maxsplit=1)
+                if len(parts) > 1:
+                    program_name = parts[1]
+                    return "detach", program_name, None
+                return "detach", None, None
+            
+            # Handle process_input command
+            elif command.startswith("process_input "):
+                return "process_input", command, None
+
+            # Parse normal commands
+            parts = command.strip().split(maxsplit=1)
+            cmd_name = parts[0].lower()
+            program_name = parts[1] if len(parts) > 1 else None
+            
+            return cmd_name, program_name, None
+            
+        except Exception as e:
+            print(f"Error handling client request: {e}")
+            return None, None, None
 
     def process_command(self, cmd):
         """

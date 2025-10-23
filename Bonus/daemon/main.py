@@ -8,6 +8,7 @@ from termcolor import colored
 import argparse
 import pwd
 import signal
+import socket  # ADD THIS IMPORT
 from ParseConfige import ConfigParser
 
 commands = None
@@ -71,33 +72,65 @@ def start_autostart_programs(programs, config_path):
 
 
 def handle_client_connection(server, client_socket, programs, config_path):
+    """Handle a single client connection"""
     global commands
     should_exit = False
     
-    while True:
-        command, program_name = server.handle_client(client_socket)
-        if command is None:
-            break
-        
-        response = commands.process_command(command, program_name, programs, config_path)
-        
-        if response is None:
-            if command.lower() == 'exit':
-                should_exit = True
+    try:
+        while True:
+            command, program_name, _ = server.handle_client(client_socket)
+            
+            if command is None:
                 break
-            else:
+            
+            if command == "attach":
+                response = commands.verify_attach(program_name)
+                commands.stop_command(commands.programs, program_name)
+                commands.start_command(commands.programs, program_name, True)
+                try:
+                    client_socket.sendall(response.encode('utf-8'))
+                except (BrokenPipeError, socket.error):
+                    break
+                
+                if response.startswith("ATTACH_OK"):
+                    commands.handle_attached_session(program_name, client_socket)
+                    break
                 continue
-        
-        try:
-            client_socket.sendall(response.encode('utf-8'))
-        except BrokenPipeError:
-            break
-        
-        if command.lower() == 'exit':
-            should_exit = True
-            break
+            
+            elif command == "detach":
+                response = commands.detach_command(program_name)
+                try:
+                    client_socket.sendall(response.encode('utf-8'))
+                except Exception:
+                    pass
+                break
+            
+            else:
+                response = commands.process_command(command, program_name, programs, config_path)
+                
+                if response is None:
+                    if command.lower() == 'exit':
+                        should_exit = True
+                        break
+                    continue
+                
+                try:
+                    client_socket.sendall(response.encode('utf-8'))
+                except (BrokenPipeError, socket.error):
+                    break
+                
+                if command.lower() == 'exit':
+                    should_exit = True
+                    break
     
-    client_socket.close()
+    except Exception as e:
+        print(f"{e}")
+    finally:
+        try:
+            client_socket.close()
+        except:
+            pass
+    
     return should_exit
 
 
@@ -147,6 +180,7 @@ def drop_privileges(user='nobody'):
     except Exception as e:
         print(f"Failed to drop privileges: {e}")
         sys.exit(1)
+
 
 def main():
     global commands

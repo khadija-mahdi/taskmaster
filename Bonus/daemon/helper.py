@@ -4,6 +4,8 @@ import time
 import signal
 import shutil
 
+
+
 def get_path(path):
     if path is None:
         return None
@@ -11,13 +13,14 @@ def get_path(path):
     return _expanded.replace("$PWD", os.getcwd())
 
 
-def exec_child_process(program, program_name):
+def exec_child_process(program, program_name, is_attach):
     """Execute the child process. This runs in the child after fork."""
     try:
-        os.setsid()
+
         cmd = get_path(program.get('cmd'))
         if not cmd:
-            print(f"INFO Error: no command specified for program '{program_name}'", file=sys.stderr)
+            print(
+                f"INFO Error: no command specified for program '{program_name}'", file=sys.stderr)
             sys.exit(1)
 
         parts = cmd.split()
@@ -25,42 +28,49 @@ def exec_child_process(program, program_name):
 
         if not os.path.isabs(command_path):
             if not shutil.which(command_path):
-                print(f"INFO Error: can't find command '{command_path}'", file=sys.stderr)
+                print(
+                    f"INFO Error: can't find command '{command_path}'", file=sys.stderr)
                 sys.exit(1)
         else:
             if not os.path.exists(command_path):
-                print(f"INFO Error: can't find command '{command_path}'", file=sys.stderr)
+                print(
+                    f"INFO Error: can't find command '{command_path}'", file=sys.stderr)
                 sys.exit(1)
             if not os.access(command_path, os.X_OK):
-                print(f"INFO Error: command '{command_path}' is not executable", file=sys.stderr)
+                print(
+                    f"INFO Error: command '{command_path}' is not executable", file=sys.stderr)
                 sys.exit(1)
-                
+
         workingdir = get_path(program.get('workingdir')) or os.getcwd()
         umask = program.get('umask', 0o022)
         os.umask(umask)
-
         stdout_path = program.get('stdout')
-        if stdout_path:
-            try:
-                sys.stdout.flush()
-                fd_out = os.open(stdout_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o666)
-                os.dup2(fd_out, sys.stdout.fileno())
-                os.close(fd_out)
-            except Exception as e:
-                print(f"INFO Error: can't redirect stdout to '{stdout_path}': {e}", file=sys.stderr)
-                sys.exit(1)
-                
-        stderr_path = program.get('stderr')
-        if stderr_path:
-            try:
-                sys.stderr.flush()
-                fd_err = os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o666)
-                os.dup2(fd_err, sys.stderr.fileno())
-                os.close(fd_err)
-            except Exception as e:
-                print(f"INFO Error: can't redirect stderr to '{stderr_path}': {e}", file=sys.stderr)
-                sys.exit(1)
+        print(f"DEBUG: is_attach = {is_attach}", file=sys.stderr )
+        if  not is_attach:
+            if stdout_path:
+                try:
+                    sys.stdout.flush()
+                    fd_out = os.open(stdout_path, os.O_WRONLY |
+                                    os.O_CREAT | os.O_APPEND, 0o666)
+                    os.dup2(fd_out, sys.stdout.fileno())
+                    os.close(fd_out)
+                except Exception as e:
+                    print(
+                        f"INFO Error: can't redirect stdout to '{stdout_path}': {e}", file=sys.stderr)
+                    sys.exit(1)
 
+            stderr_path = program.get('stderr')
+            if stderr_path:
+                try:
+                    sys.stderr.flush()
+                    fd_err = os.open(stderr_path, os.O_WRONLY |
+                                    os.O_CREAT | os.O_APPEND, 0o666)
+                    os.dup2(fd_err, sys.stderr.fileno())
+                    os.close(fd_err)
+                except Exception as e:
+                    print(
+                        f"INFO Error: can't redirect stderr to '{stderr_path}': {e}", file=sys.stderr)
+                    sys.exit(1)
         env = os.environ.copy()
         for k, v in (program.get('env') or {}).items():
             env[k] = str(v)
@@ -68,7 +78,8 @@ def exec_child_process(program, program_name):
         try:
             os.chdir(workingdir)
         except Exception as e:
-            print(f"INFO Error: can't chdir to '{workingdir}': {e}", file=sys.stderr)
+            print(
+                f"INFO Error: can't chdir to '{workingdir}': {e}", file=sys.stderr)
             sys.exit(1)
 
         start_delay = program.get('startdelay', 0)
@@ -76,9 +87,10 @@ def exec_child_process(program, program_name):
             time.sleep(start_delay)
 
         os.execvpe(parts[0], parts, env)
-        
+
     except Exception as e:
-        print(f"INFO Error: unexpected error in child process: {e}", file=sys.stderr)
+        print(
+            f"INFO Error: unexpected error in child process: {e}", file=sys.stderr)
         sys.exit(1)
 
 
@@ -89,17 +101,25 @@ def cleanup_failed_process(program_name, pid, running_processes, process_info):
             os.waitpid(pid, os.WNOHANG)
         except:
             pass
-        
+
         if program_name in running_processes:
             if pid in running_processes[program_name]:
                 running_processes[program_name].remove(pid)
-        
-        # Find and update the process state
+
+        # Find and update the process state, close master_fd if exists
         for key, info in process_info.items():
             if info.get('pid') == pid:
                 info['state'] = 'STOPPED'
+                # Close master_fd if it exists
+                master_fd = info.get('master_fd')
+                if master_fd:
+                    try:
+                        os.close(master_fd)
+                    except:
+                        pass
+                    info['master_fd'] = None
                 break
-            
+
     except Exception as e:
         print(f"Warning: Error during cleanup of process {pid}: {e}")
 
@@ -119,16 +139,25 @@ def cleanup_program(program_name, running_processes, process_info):
                     os.waitpid(pid, os.WNOHANG)
                 except:
                     pass
-            
+
             running_processes[program_name] = []
-            
-        # Update process state to FATAL instead of removing
+
+        # Update process state to FATAL and close master_fds
         for key in list(process_info.keys()):
-            if key.startswith(f"{program_name}_"):
+            if key.startswith(f"{program_name}_") or key == program_name:
                 process_info[key]["state"] = "FATAL"
-            
+                # Close master_fd if it exists
+                master_fd = process_info[key].get('master_fd')
+                if master_fd:
+                    try:
+                        os.close(master_fd)
+                    except:
+                        pass
+                    process_info[key]['master_fd'] = None
+
     except Exception as e:
-        print(f"Warning: Error during program cleanup for '{program_name}': {e}")
+        print(
+            f"Warning: Error during program cleanup for '{program_name}': {e}")
 
 
 def stop_process(pid, stopsignal, stoptime):
@@ -146,7 +175,6 @@ def stop_process(pid, stopsignal, stoptime):
                 if time.time() - start_wait > stoptime:
                     try:
                         os.kill(pid, signal.SIGKILL)
-                        print(f"Process {pid} didn't stop gracefully, sent SIGKILL")
                     except Exception:
                         pass
                     break
@@ -157,7 +185,8 @@ def stop_process(pid, stopsignal, stoptime):
         pass
     except PermissionError:
         pass
-    
+
+
 def should_autorestart(autorestart_value):
     if isinstance(autorestart_value, str):
         val = autorestart_value.lower()
@@ -169,16 +198,19 @@ def should_autorestart(autorestart_value):
             return True
     return bool(autorestart_value)
 
-def run_process(program, indexed_name):
+
+def run_process(program, indexed_name,is_attach=False):
     """Fork and exec a program, returning the child PID."""
     pid = os.fork()
     if pid == 0:
         try:
-            exec_child_process(program, indexed_name)
+            print(f"DEBUG: is_attach = {is_attach}", file=sys.stderr )
+            exec_child_process(program, indexed_name, is_attach)
         except Exception as e:
             print(f"ERR exec failed in child '{indexed_name}': {e}")
             sys.exit(1)
     return pid
+
 
 def isalive_process(pid):
     """Return (alive: bool, exit_code: int or None)."""
@@ -197,21 +229,24 @@ def isalive_process(pid):
     except ChildProcessError:
         return False, None
 
-def register_process(running_processes, process_info, program_name, indexed_name, pid, retry_count, state="RUNNING"):
-    """Record process details."""
+
+def register_process(running_processes, process_info, program_name, indexed_name, pid, retry_count, state="RUNNING", master_fd=None):
+    """Record process details with optional PTY master file descriptor."""
     if program_name not in running_processes:
         running_processes[program_name] = []
     if pid not in running_processes[program_name]:
         running_processes[program_name].append(pid)
-    
+
     process_info[indexed_name] = {
         "retries": retry_count,
         "start_time": time.time(),
         "pid": pid,
         "state": state,
-        "program_name": program_name
+        "program_name": program_name,
+        "master_fd": master_fd  # Store the PTY master file descriptor for attach functionality
     }
-    
+
+
 def log_event(event_type, message):
     """Log events to a file with timestamp."""
     import datetime
@@ -227,4 +262,3 @@ def log_event(event_type, message):
             f.write(log_entry)
     except Exception as e:
         print(f"Warning: Could not write to log file: {e}")
-        
