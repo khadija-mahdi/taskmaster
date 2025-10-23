@@ -33,7 +33,7 @@ class ConfigParser:
     # }
     REQUIRED_FIELDS = ['cmd']
 
-    def parse_config_file(file_path="../../configs/config.yml"):
+    def parse_config_file(file_path="../../configs/configMan.yml"):
         """Parse and validate configuration file"""
         try:
             if not os.path.exists(file_path):

@@ -17,5 +17,5 @@ def get_email_config():
         'smtp_port': int(config['smtp_port']),
         'username': config['username'],
         'password': config['password'],
-        'recipients': [config['recipients']]  # Make it a list as required by EmailAlerter
+        'recipients': [config['recipients']] 
     }
