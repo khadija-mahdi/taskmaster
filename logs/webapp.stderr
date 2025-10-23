@@ -3,3 +3,19 @@
  * Running on http://127.0.0.1:5000
  * Running on http://10.230.149.64:5000
 [33mPress CTRL+C to quit[0m
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+Address already in use
+Port 5000 is in use by another program. Either identify and stop that program, or start the server with a different port.
+/home/hasabir/miniconda3/bin/python: can't open file '/home/hasabir/42_projects/taskmaster/workdir/../../workdir/app.py': [Errno 2] No such file or directory
+/home/hasabir/miniconda3/bin/python: can't open file '/home/hasabir/42_projects/taskmaster/workdir/../../workdir/app.py': [Errno 2] No such file or directory
+/home/hasabir/miniconda3/bin/python: can't open file '/home/hasabir/42_projects/taskmaster/workdir/../../workdir/app.py': [Errno 2] No such file or directory
+/home/hasabir/miniconda3/bin/python: can't open file '/home/hasabir/42_projects/taskmaster/workdir/../../workdir/app.py': [Errno 2] No such file or directory

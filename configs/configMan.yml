@@ -19,10 +19,11 @@ programs:
 
   api:
     cmd: python3 ../workdir/api_server.py
-    # autorestart: true
+    autorestart: true
     numprocs: 2
     exitcodes: [0, 2]
-    # startretries: 2
+    startretries: 2
+    stoptime: 10
     autostart: false
     env:
       HOST: localhost

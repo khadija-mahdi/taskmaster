@@ -157,8 +157,8 @@ class Supervisor:
                                 sig = getattr(signal, f"SIG{self.programs[key]['stopsignal']}", signal.SIGTERM)
                             else:
                                 sig = signal.SIGTERM
-                            if self.programs[key].get('stopwait', 0):
-                                timeout = self.programs[key]['stopwait']
+                            if self.programs[key].get('stoptime', 0):
+                                timeout = self.programs[key]['stoptime']
                             else:
                                 timeout = 0.5
                             print("Stopping", worker_name, "...")
@@ -305,9 +305,9 @@ class Supervisor:
             
             
             
-            # if self.programs[worker].get('stoptime') and elapsed_time < self.programs[worker]['stoptime']:
-            #     exit_code = 1
-            #     status_message = "Exited too quickly"
+            if self.programs[worker].get('stoptime') and elapsed_time < self.programs[worker]['stoptime']:
+                exit_code = 1
+                status_message = "Exited too quickly"
                 
 
             
@@ -316,7 +316,7 @@ class Supervisor:
             
             
             # Write exit status to state file
-            if exit_code in self.programs[worker_name].get('exitcodes', [0]):
+            elif exit_code in self.programs[worker_name].get('exitcodes', [0]):
                 status_message = f"Exited successfully with code {exit_code}"
             else:
                 status_message = f"Exited with code {exit_code}"

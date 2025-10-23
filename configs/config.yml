@@ -75,7 +75,7 @@ programs:
   #   cmd: "/usr/local/bin/nginx -c /etc/nginx/workdir.conf"
   #   numprocs: 1
   #   umask: 022 # default permissions
-  #   workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+  #   workingdir: ../../workdir
   #   autostart: true
   #   autorestart: unexpected
   #   exitcodes:
@@ -106,10 +106,10 @@ programs:
   #   stdout: /tmp/vgsworker.stdout
   #   stderr: /tmp/vgsworker.stderprograms:
   webapp:
-    cmd: /home/hasabir/miniconda3/bin/python /home/hasabir/Desktop/projects/taskmaster/workdir/app.py
+    cmd: /home/hasabir/miniconda3/bin/python ../../workdir/app.py
     numprocs: 1
     umask: 022
-    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    workingdir: ../../workdir
     autostart: false
     autorestart: unexpected
     exitcodes: 0
@@ -117,8 +117,8 @@ programs:
     starttime: 5
     stopsignal: TERM
     stoptime: 10
-    stdout: /home/hasabir/Desktop/projects/taskmaster/logs/webapp.stdout
-    stderr: /home/hasabir/Desktop/projects/taskmaster/logs/webapp.stderr
+    stdout: ../../logs/webapp.stdout
+    stderr: ../../logs/webapp.stderr
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
@@ -133,7 +133,7 @@ programs:
     env:
       HOST: localhost
       PORT: '8089'
-    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    workingdir: ../../workdir
 
     umask: 077
 
@@ -141,7 +141,7 @@ programs:
     cmd: python ../workdir/worker.py
     # numprocs: 1
     umask: 022
-    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    workingdir: ../../workdir
     autostart: true
     autorestart: unexpected
     exitcodes: 0
@@ -149,8 +149,8 @@ programs:
     starttime: 3
     stopsignal: INT
     stoptime: 10
-    stdout: /home/hasabir/Desktop/projects/taskmaster/logs/worker.stdout
-    stderr: /home/hasabir/Desktop/projects/taskmaster/logs/worker.stderr
+    stdout: ../../logs/worker.stdout
+    stderr: ../../logs/worker.stderr
     # env:
     #   STARTED_BY: taskmaster
     #   ANSWER: 42
@@ -160,12 +160,12 @@ programs:
     cmd: /bin/ls -la
     numprocs: 1
     umask: 022
-    workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+    workingdir: ../../workdir
     autostart: false
     autorestart: never
 
-    stdout: /home/hasabir/Desktop/projects/taskmaster/logs/ls.stdout
-    stderr: /home/hasabir/Desktop/projects/taskmaster/logs/ls.stderr
+    stdout: ../../logs/ls.stdout
+    stderr: ../../logs/ls.stderr
   
 
 #  worker:
@@ -180,7 +180,7 @@ programs:
   #   cmd: "/usr/local/bin/nginx -c /etc/nginx/workdir.conf"
   #   numprocs: 1
   #   umask: 022 # default permissions
-  #   workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
+  #   workingdir: ../../workdir
   #   autostart: true
   #   autorestart: unexpected
   #   exitcodes:

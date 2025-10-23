@@ -3,7 +3,7 @@ import time
 
 
 time.sleep(5)
-sys.exit(1)
+sys.exit(0)
 
 
 
