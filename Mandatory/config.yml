@@ -43,7 +43,7 @@ programs:
     startretries: 2
     starttime: 3
     stopsignal: INT
-    # stoptime: 10
+    stoptime: 10
     stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stdout
     stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/worker.stderr
     # env:
@@ -57,9 +57,7 @@ programs:
     umask: 022
     workingdir: /home/hasabir/Desktop/projects/taskmaster/workdir
     autostart: false
-    autorestart: always
-    startretries: 2
-    starttime: 3
+    autorestart: never
 
     stdout: /home/hasabir/Desktop/projects/taskmaster/workdir/ls.stdout
     stderr: /home/hasabir/Desktop/projects/taskmaster/workdir/ls.stderr

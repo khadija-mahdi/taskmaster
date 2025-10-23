@@ -291,7 +291,7 @@ class Supervisor:
             
             # Write exit status to state file
             elif exit_code in self.programs[worker_name].get('exitcodes', [0]):
-                status_message = "Exited successfully"
+                status_message = f"Exited successfully with code {exit_code}"
             else:
                 status_message = f"Exited with code {exit_code}"
             time.sleep(0.1)
