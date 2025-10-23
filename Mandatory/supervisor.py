@@ -23,11 +23,16 @@ class Supervisor:
                 os.makedirs(self.state_dir, exist_ok=True)
             except OSError as e:
                 print(f"Failed to create state dir {self.state_dir}: {e}", file=sys.stderr)
-
+        self.log_file = '../logs/task_master.log'
+        os.makedirs(os.path.dirname(self.log_file), exist_ok=True)
+        with open(self.log_file, 'a'):
+            pass
+    
+    
     def supervise(self, cmd):
+        
         self.cmd = cmd[0]
         self.arg = cmd[1] if len(cmd) > 1 else None
-        
         if self.arg not in self.programs and self.arg is not None and self.arg != "all":
             print(colored(f"Program '{self.arg}' not found in configuration.", "red"))
             return
@@ -42,13 +47,20 @@ class Supervisor:
             self.stop(self.arg)
         elif self.cmd == "reload":
             self.reload(self.arg)
-            
+        elif self.cmd == "autostart":
+            self.autostart()
         else:
             print("Invalid command")
-            
+    
+    
+    def autostart(self):
+        for key, value in self.programs.items():
+            if value.get('autostart', True) :
+                self.start(key)
+    
     def start(self, arg, restart=False):
         for key, value in self.programs.items():
-            if not (arg == key or (value.get('autostart', True) and arg is None) or arg == "all"):
+            if not (arg == key or arg is None or arg == "all"):
                 continue
 
             # Initialize start_series on first (non-restart) start or ensure it exists during restart
@@ -72,11 +84,14 @@ class Supervisor:
                     continue
                 if worker_state and worker_name in worker_state.keys() and worker_state[worker_name]["status"] == "running":
                     print(f"{worker_name} is already running")
+                    self._log(f"{worker_name} is already running")
+                    
                     continue
                 try:
                     pid = os.fork()
                 except OSError as e:
-                    print(f"fork failed: {e}")
+                    
+                    self._log(f"fork failed: {e}")
                     sys.exit(1)
                 
                 if pid == 0:
@@ -96,6 +111,7 @@ class Supervisor:
             
             if not worker_states:
                 print(f"{key} is not running")
+                self._log(f"{key} is not running")
             else:
                 for worker_name, state in worker_states.items():
                     if state.get('status') == 'running' and 'pid' in state:
@@ -109,6 +125,7 @@ class Supervisor:
 
     def restart(self, arg, force=False):
         for key in self.programs.keys():
+            self._log(f"restarting {key}")
             if arg is not None and arg != key:
                 continue
             self.stop(key, force)
@@ -116,6 +133,7 @@ class Supervisor:
 
     def stop(self, arg, force=False):
         for key in self.programs.keys():
+                self._log(f"stoping {key}")
                 if arg is not None and arg != key:
                     continue
                 
@@ -141,19 +159,21 @@ class Supervisor:
                                 sig = signal.SIGTERM
                             os.kill(pid, sig)
                             time.sleep(1)
+                            self._log(f"Sent {sig.name} to {worker_name} (PID {pid})")
                             print(f"Sent {sig.name} to {worker_name} (PID {pid})")
                             self._write_worker_state(worker_name, exit_code=143, message=f"Stopped by {sig.name}")
                             self._remove_worker_state(worker_name)
                         except OSError as e:
-                            print(f"Failed to stop {worker_name} (PID {pid}): {e}")
+                            self._log(f"Failed to stop {worker_name} (PID {pid}): {e}")
                     else:
                         print(f"{worker_name} is not running")
+                        self._log(f"{worker_name} is not running")
                         self._remove_worker_state(worker_name)
                         
     
     def reload(self, arg):
         new_programs = ConfigParser.parse_config_file(self.config_file_name)
-
+        self._log(f"reloading {arg}")
         # If an argument is provided, only reload that specific program
         if arg is not None:
             # If program exists in new config, update/restart if changed or new
@@ -272,6 +292,7 @@ class Supervisor:
             self._write_worker_state(worker_name=worker_name, pid=process.pid)
 
             print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - INFO {worker_name} started with pid {process.pid}", file=sys.stdout, flush=True)
+            self._log(f"{worker_name} started with pid {process.pid}")
             exit_code = process.wait()
             end_time = time.perf_counter()
             status_message = ""
@@ -430,4 +451,11 @@ class Supervisor:
             except:
                 pass
         return None
+    
+    def _log(self, log_message):
+        try:
+            with open(self.log_file, 'a') as f:
+                f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {log_message}\n")
+        except OSError as e:
+            print(f"Failed to write to log file {self.log_file}: {e}", file=sys.stderr)
 

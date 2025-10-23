@@ -13,8 +13,13 @@ running_processes = {}
 def argsparser():
     parser = argparse.ArgumentParser(description="Task Master CLI")
     parser.add_argument(
-        'config', nargs='?', default='../../configs/config.yml',
-        help='(optional) Path to the configuration file as argument'
+        '-c', '--config', type=str, default='config_file.yml',
+        help='Path to the configuration file (default: config_file.yml)'
+    )
+    # Accept config file as positional argument as well
+    parser.add_argument(
+        'config_positional', nargs='?', default=None,
+        help='(optional) Path to the configuration file as positional argument'
     )
     args = parser.parse_args()
     return args
@@ -26,11 +31,15 @@ def main():
         args = argsparser()
         programs = init(args.config)
         supervisor = Supervisor(programs, args.config)
-        started = False
-        supervisor.supervise('start')
+        supervisor.supervise(('autostart', ))
         while True:
             user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
+            user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
             if user_input:
+                result = parseCommandLineArgs(user_input)
+                readline.add_history(user_input)
+                # print(result)
+                supervisor.supervise(result)
                 result = parseCommandLineArgs(user_input)
                 readline.add_history(user_input)
                 supervisor.supervise(result)
