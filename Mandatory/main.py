@@ -13,8 +13,8 @@ running_processes = {}
 def argsparser():
     parser = argparse.ArgumentParser(description="Task Master CLI")
     parser.add_argument(
-        '-c', '--config', type=str, default='config_file.yml',
-        help='Path to the configuration file (default: config_file.yml)'
+        '-c', '--config', type=str, default='../configs/configMan.yml',
+        help='Path to the configuration file (default: configs/configMan.yml)'
     )
     # Accept config file as positional argument as well
     parser.add_argument(

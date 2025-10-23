@@ -11,6 +11,11 @@ class ConfigError(Exception):
 class ConfigParser:
     VALID_SIGNALS = ['TERM', 'HUP', 'INT', 'QUIT', 'KILL', 'USR1', 'USR2']
     VALID_AUTORESTART = ['always', 'never', 'unexpected', True, False]
+    VALID_FIELDS = [
+        'cmd', 'numprocs', 'autostart', 'autorestart', 'exitcodes',
+        'starttime', 'startretries', 'stopsignal', 'stoptime', 'stdout',
+        'stderr', 'env', 'workingdir', 'umask'
+    ]
     # DEFAULT_CONFIG = {
     #     'numprocs': 1,
     #     'autostart': False,
@@ -28,7 +33,7 @@ class ConfigParser:
     # }
     REQUIRED_FIELDS = ['cmd']
 
-    def parse_config_file(file_path="../../configs/configMan.yml"):
+    def parse_config_file(file_path="../configs/configMan.yml"):
         """Parse and validate configuration file"""
         try:
             if not os.path.exists(file_path):

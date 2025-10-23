@@ -23,6 +23,7 @@ programs:
     numprocs: 2
     exitcodes: [0, 2]
     # startretries: 2
+    starttime: 3
     autostart: false
     env:
       HOST: localhost
