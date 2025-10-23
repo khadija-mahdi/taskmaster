@@ -1,9 +1,13 @@
 import sys
+import time
+
+
+time.sleep(5)
 sys.exit(1)
 
 
 
-# # worker.py - Background worker example
+# # # worker.py - Background worker example
 # import time
 # import logging
 # import os

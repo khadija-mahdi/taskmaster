@@ -28,7 +28,7 @@ class Supervisor:
         self.cmd = cmd[0]
         self.arg = cmd[1] if len(cmd) > 1 else None
         
-        if self.arg not in self.programs and self.arg is not None:
+        if self.arg not in self.programs and self.arg is not None and self.arg != "all":
             print(colored(f"Program '{self.arg}' not found in configuration.", "red"))
             return
 
@@ -48,7 +48,7 @@ class Supervisor:
             
     def start(self, arg, restart=False):
         for key, value in self.programs.items():
-            if not (arg == key or (value.get('autostart', True) and arg is None)):
+            if not (arg == key or (value.get('autostart', True) and arg is None) or arg == "all"):
                 continue
 
             # Initialize start_series on first (non-restart) start or ensure it exists during restart

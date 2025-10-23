@@ -12,7 +12,7 @@ import readline
 def argsparser():
     parser = argparse.ArgumentParser(description="Task Master CLI")
     parser.add_argument(
-        'config', nargs='?', default='Mandatory/configs/config_file.yml',
+        'config', nargs='?', default='configs/config_file.yml',
         help='(optional) Path to the configuration file as argument'
     )
     args = parser.parse_args()
