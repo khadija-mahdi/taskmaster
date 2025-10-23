@@ -157,8 +157,13 @@ class Supervisor:
                                 sig = getattr(signal, f"SIG{self.programs[key]['stopsignal']}", signal.SIGTERM)
                             else:
                                 sig = signal.SIGTERM
+                            if self.programs[key].get('stopwait', 0):
+                                timeout = self.programs[key]['stopwait']
+                            else:
+                                timeout = 0.5
+                            print("Stopping", worker_name, "...")
+                            time.sleep(timeout)
                             os.kill(pid, sig)
-                            time.sleep(1)
                             self._log(f"Sent {sig.name} to {worker_name} (PID {pid})")
                             print(f"Sent {sig.name} to {worker_name} (PID {pid})")
                             self._write_worker_state(worker_name, exit_code=143, message=f"Stopped by {sig.name}")
@@ -300,9 +305,9 @@ class Supervisor:
             
             
             
-            if self.programs[worker].get('stoptime') and elapsed_time < self.programs[worker]['stoptime']:
-                exit_code = 1
-                status_message = "Exited too quickly"
+            # if self.programs[worker].get('stoptime') and elapsed_time < self.programs[worker]['stoptime']:
+            #     exit_code = 1
+            #     status_message = "Exited too quickly"
                 
 
             
@@ -311,7 +316,7 @@ class Supervisor:
             
             
             # Write exit status to state file
-            elif exit_code in self.programs[worker_name].get('exitcodes', [0]):
+            if exit_code in self.programs[worker_name].get('exitcodes', [0]):
                 status_message = f"Exited successfully with code {exit_code}"
             else:
                 status_message = f"Exited with code {exit_code}"
