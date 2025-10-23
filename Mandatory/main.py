@@ -34,7 +34,6 @@ def main():
         supervisor.supervise(('autostart', ))
         while True:
             user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
-            user_input = input(colored('taskmaster> ', 'magenta', attrs=['bold']))
             if user_input:
                 result = parseCommandLineArgs(user_input)
                 readline.add_history(user_input)
