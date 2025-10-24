@@ -77,8 +77,8 @@ class Commands:
             except ProcessLookupError:
                 return f"Error: Process '{program_name}' (pid {pid}) is not running"
 
-            if process_info.get('attached'):
-                return f"Error: Already attached to process '{program_name}'"
+            # if process_info.get('attached'):
+            #     return f"Error: Already attached to process '{program_name}'"
             
             self.is_attach = True  # Set is_attach to True when verifying attach command
             return f"ATTACH_OK|{pid}"

@@ -342,7 +342,7 @@ class Supervisor:
             return True
         elif autorestart == 'unexpected':
             expected_exitcodes = config.get('exitcodes', [0])
-            return False if exit_code in expected_exitcodes else True
+            return True if exit_code in expected_exitcodes else False
         else:  # 'never'
             return False
 
