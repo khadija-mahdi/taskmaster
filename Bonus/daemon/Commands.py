@@ -84,7 +84,7 @@ class Commands:
                 return f"Error: Process '{program_name}' (pid {pid}) is not running"
 
             if process_info.get('attached'):
-                return f"Error: Already attached to process '{program_name}'"
+                return f"ATTACH_OK|{pid}"
             
             self.is_attach = True  # Set is_attach to True when verifying attach command
             return f"ATTACH_OK|{pid}"
@@ -173,7 +173,7 @@ class Commands:
             import traceback
             traceback.print_exc()
         finally:
-            process_info[program_name]['attached'] = False
+            process_info['attached'] = False
             try:
                 client_socket.setblocking(True)
             except:
