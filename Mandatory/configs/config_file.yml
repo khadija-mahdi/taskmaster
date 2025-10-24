@@ -1,0 +1,36 @@
+programs:
+
+  nginx:
+    cmd: "nginx"
+    numprocs: 1
+    umask: 022
+    workingdir: /home/kmahdi/Desktop/taskmaster/
+    autostart: true
+    autorestart: unexpected
+    exitcodes:
+    - 0
+    - 2
+    startretries: 3
+    starttime: 5
+    stopsignal: TERM
+    stoptime: 10
+    stdout: /tmp/nginx.stdout
+    stderr: /tmp/nginx.stderr
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 42
+
+  redis-server:
+    cmd: "/usr/bin/redis-server /etc/redis/redis.conf"
+    numprocs: 1
+    umask: 077
+    workingdir: /tmp
+    autostart: true
+    autorestart: unexpected
+    exitcodes:
+      - 0
+    startretries: 3
+    starttime: 5
+    stopsignal: TERM
+    stdout: /tmp/redis.stdout
+    stderr: /tmp/redis.stderr

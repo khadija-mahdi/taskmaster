@@ -1,0 +1,103 @@
+programs:
+  # webapp:
+  #   cmd: /home/kmahdi/Desktop/taskmaster/.venv/bin/python /home/kmahdi/Desktop/taskmaster/Bonus/workdir/app.py
+  #   numprocs: 1
+  #   umask: 022
+  #   workingdir: /home/kmahdi/Desktop/taskmaster/Bonus/workdir
+  #   autostart: true
+  #   autorestart: unexpected
+  #   exitcodes: 0
+  #   startretries: 2
+  #   starttime: 5
+  #   stopsignal: TERM
+  #   stoptime: 10
+  #   stdout: /home/kmahdi/Desktop/taskmaster/Bonus/logger/webapp.stdout
+  #   stderr: /home/kmahdi/Desktop/taskmaster/Bonus/logger/webapp.stderr
+  #   env:
+  #     STARTED_BY: taskmaster
+  #     ANSWER: 42
+  
+  # api:
+  #   cmd: /home/kmahdi/Desktop/taskmaster/.venv/bin/python /home/kmahdi/Desktop/taskmaster/Bonus/workdir/api_server.py
+  #   autorestart: true
+  #   numprocs: 1
+  #   exitcodes: [0, 2]
+  #   startretries: 1
+  #   autostart: true
+  #   env:
+  #     HOST: localhost
+  #     PORT: '8581'
+  #   workingdir: /home/kmahdi/Desktop/taskmaster/Bonus/workdir
+  #   stdout: /home/kmahdi/Desktop/taskmaster/Bonus/logger/api.stdout
+  #   stderr: /home/kmahdi/Desktop/taskmaster/Bonus/logger/api.stderr
+  #   umask: 077
+
+  worker:
+    cmd: /home/kmahdi/Desktop/taskmaster/.venv/bin/python /home/kmahdi/Desktop/taskmaster/Bonus/workdir/worker.py
+    numprocs: 1
+    umask: 022
+    workingdir: /home/kmahdi/Desktop/taskmaster/Bonus/workdir
+    autostart: true
+    autorestart: false
+    exitcodes: 0
+    startretries: 1
+    starttime: 5
+    stopsignal: INT
+    stoptime: 3
+    stdout: /home/kmahdi/Desktop/taskmaster/Bonus/logger/worker.stdout
+    stderr: /home/kmahdi/Desktop/taskmaster/Bonus/logger/worker.stderr
+    env:
+      STARTED_BY: taskmaster
+      
+  test_output:
+    cmd: /home/kmahdi/Desktop/taskmaster/.venv/bin/python /home/kmahdi/Desktop/taskmaster/Bonus/workdir/test_output.py
+    numprocs: 1
+    umask: 022
+    workingdir: /home/kmahdi/Desktop/taskmaster/Bonus/workdir
+    autostart: true
+    autorestart: true
+    exitcodes: [0]
+    startretries: 1
+    starttime: 1
+    stopsignal: TERM
+    stoptime: 5
+    stdout: /home/kmahdi/Desktop/taskmaster/Bonus/logger/test_output.stdout
+    stderr: /home/kmahdi/Desktop/taskmaster/Bonus/logger/test_output.stderr
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 42
+
+  # nginx:
+  #     cmd: "/usr/local/bin/nginx -c /etc/nginx/workdir.conf"
+  #     numprocs: 1
+  #     umask: 022 Server:
+  #     workingdir: /home/kmahdi/Desktop/taskmaster/Bonus/workdir
+  #     autostart: true
+  #     autorestart: unexpected
+  #     exitcodes:
+  #       - 0
+  #       - 2
+  #     startretries: 3
+  #     starttime: 5
+  #     stopsignal: TERM
+  #     stoptime: 10
+  #     stdout: /home/kmahdi/Desktop/taskmaster/Bonus/logger/nginx.stdout
+  #     stderr: /home/kmahdi/Desktop/taskmaster/Bonus/logger/nginx.stderr
+  #     env:
+  #       STARTED_BY: taskmaster
+  #       ANSWER: 42
+
+  # vogsphere:
+  #     cmd: "/usr/local/bin/vogsphere-worker --no-prefork"
+  #     numprocs: 1
+  #     umask: 077
+  #     workingdir: /tmp
+  #     autostart: true
+  #     autorestart: unexpected
+  #     exitcodes: 0
+  #     startretries: 3
+  #     starttime: 5
+  #     stopsignal: USR1
+  #     stoptime: 10
+  #     stdout: /home/kmahdi/Desktop/taskmaster/Bonus/logger/vgsworker.stdout
+  #     stderr: /home/kmahdi/Desktop/taskmaster/Bonus/logger/vgsworker.stder
