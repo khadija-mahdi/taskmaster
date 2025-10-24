@@ -11,7 +11,7 @@ def load_env_file(env_path):
     return config
 
 def get_email_config():
-    config = load_env_file('/home/hasabir/42_projects/taskmaster/env')
+    config = load_env_file('/home/kmahdi/Desktop/taskmaster/env')
     return {
         'smtp_server': config['smtp_server'],
         'smtp_port': int(config['smtp_port']),
